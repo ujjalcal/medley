@@ -1,0 +1,22 @@
+# Medley Studio — Python dependencies
+#
+# Install with:
+#     python3 -m pip install --user -r requirements.txt
+#
+# (On a system Python where pip is "externally managed" — e.g. Homebrew Python
+# on recent macOS — add --break-system-packages, or use a venv.)
+#
+# ---------------------------------------------------------------------------
+# SYSTEM REQUIREMENT (not installable via pip): ffmpeg
+#   macOS:   brew install ffmpeg
+#   Linux:   apt install ffmpeg          # or your distro's package manager
+#   Windows: https://ffmpeg.org/download.html
+#
+# ffmpeg must be on PATH. It powers the medley renderer (build_medley.py) and
+# the pitch-shifting endpoints in medley_server.py. Without it the editor's
+# "Build medley video" and the Pitch Studio's "Test" actions will fail.
+# ---------------------------------------------------------------------------
+
+# YouTube download backend. yt-dlp gets frequent updates to track YouTube's
+# format changes — keep it current rather than pinning to an exact version.
+yt-dlp>=2025.10
