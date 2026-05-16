@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Generated cut-list staging file from medley_server.py
+.medley_cutlist.json
+
+# Large media — downloaded videos and rendered medleys
+# (the editor expects you to download these locally via the YouTube
+# downloader; they don't belong in source control).
+downloads/
+*.mp4
+*.m4v
+*.mov
+*.webm
+*.mkv
+*.mp3
+*.m4a

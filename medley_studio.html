@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Medley Studio</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161a22;
+    --panel-2: #1d2330;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #f78166;
+    --accent-2: #58a6ff;
+    --good: #3fb950;
+    --danger: #f85149;
+    --border: #30363d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    z-index: 10;
+  }
+  h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  h2 { font-size: 14px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .muted { color: var(--muted); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  button, label.btn {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  button:hover, label.btn:hover { background: #262d3b; border-color: #4a5060; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #0e1116; font-weight: 600; }
+  button.primary:hover { background: #ff9478; }
+  button.danger { color: var(--danger); }
+  button.ghost { background: transparent; }
+  input[type=file] { display: none; }
+  .container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+  :root { --timeline-width: 380px; }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto var(--timeline-width);
+    gap: 20px;
+  }
+  .resizer {
+    width: 6px; align-self: stretch;
+    background: var(--border); border-radius: 3px;
+    cursor: col-resize;
+    position: sticky; top: 70px;
+    height: calc(100vh - 100px);
+    transition: background 0.12s;
+    touch-action: none;
+  }
+  .resizer:hover { background: var(--accent-2); }
+  .resizer.dragging { background: var(--accent); }
+  body.is-resizing { cursor: col-resize; user-select: none; }
+  body.is-resizing iframe, body.is-resizing video { pointer-events: none; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .resizer { display: none; }
+  }
+
+  /* YouTube downloader panel */
+  .yt-panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 14px; overflow: hidden;
+  }
+  .yt-panel summary {
+    list-style: none; cursor: pointer; padding: 10px 14px;
+    background: var(--panel-2); border-bottom: 1px solid transparent;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .yt-panel[open] summary { border-bottom-color: var(--border); }
+  .yt-panel summary::before { content: "▾"; color: var(--muted); transition: transform 0.15s; }
+  .yt-panel:not([open]) summary::before { transform: rotate(-90deg); }
+  .yt-panel summary::-webkit-details-marker { display: none; }
+  .yt-body { padding: 12px 14px; }
+  .yt-body textarea {
+    width: 100%; resize: vertical; min-height: 60px;
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+  }
+  .yt-body textarea:focus { outline: 1px solid var(--accent); }
+  .yt-options { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; }
+  .yt-options label { gap: 6px; }
+  .yt-options input[type=number] { width: 70px; }
+  .yt-options input[type=text], .yt-options input[type=number] {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 8px; font-family: ui-monospace, monospace; font-size: 12px;
+  }
+  .yt-options input:focus { outline: 1px solid var(--accent); }
+
+  /* Source clips panel */
+  .clips { display: flex; flex-direction: column; gap: 12px; }
+  .clip-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .clip-card.active { border-color: var(--accent); }
+  .clip-header {
+    padding: 10px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .clip-title { font-weight: 500; font-size: 13px; word-break: break-all; }
+  .clip-body { padding: 12px 14px; }
+  .clip-card video { width: 100%; max-height: 320px; background: #000; border-radius: 4px; display: block; }
+  .clip-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .marker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--muted); padding: 4px 8px; background: var(--bg); border-radius: 4px; }
+  .marker.set { color: var(--accent-2); }
+  .ts-input {
+    background: var(--bg); color: var(--accent-2);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; width: 90px;
+  }
+  .ts-input:focus { outline: 1px solid var(--accent); }
+  .ts-input.invalid { border-color: var(--danger); color: var(--danger); }
+  .ctrl-group {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px;
+  }
+  .ctrl-group button { border: none; background: transparent; padding: 4px 8px; }
+  .ctrl-group button:hover { background: var(--panel-2); }
+  .pair-label { font-size: 11px; color: var(--muted); font-weight: 600; min-width: 28px; text-align: right; }
+  .opt-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .opt-row input[type=number] { width: 60px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-family: ui-monospace, monospace; }
+  .drop-hint {
+    margin-top: 10px; padding: 12px; border: 2px dashed var(--border); border-radius: 6px;
+    text-align: center; color: var(--muted); font-size: 12px; cursor: pointer;
+  }
+  .drop-hint.dragover { border-color: var(--accent); color: var(--accent); background: rgba(247,129,102,0.05); }
+
+  /* Timeline panel */
+  .timeline-panel {
+    position: sticky; top: 70px; align-self: start;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; max-height: calc(100vh - 100px); overflow-y: auto;
+  }
+  .timeline-stats { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+  /* Preview player */
+  .preview {
+    background: #000; border: 1px solid var(--border); border-radius: 6px;
+    overflow: hidden; margin-bottom: 12px;
+  }
+  .preview-stack { position: relative; width: 100%; background: #000; }
+  .preview-video { width: 100%; max-height: 220px; display: block; background: #000; }
+  .preview-overlay {
+    position: absolute; inset: 0; opacity: 0;
+    pointer-events: none;     /* let user scrub the active one */
+  }
+  .preview-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--panel-2); }
+  .preview-bar button { padding: 4px 10px; font-size: 13px; }
+  .preview-bar button.primary { padding: 4px 14px; }
+  #pv-status { font-size: 11px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .clip-row.playing { border-color: var(--accent); background: rgba(247,129,102,0.08); }
+  .xfade-indicator {
+    display: flex; align-items: center; gap: 8px;
+    margin: -2px 16px 4px;
+    height: 20px;
+  }
+  .xfade-indicator .xfade-line {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
+    opacity: 0.6;
+  }
+  .xfade-indicator .xfade-label {
+    color: var(--accent-2); font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    background: var(--panel); padding: 1px 6px; border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .clip-row .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+    background: var(--accent-2); color: #0e1116; font-weight: 700; font-size: 11px;
+    font-family: ui-monospace, monospace;
+  }
+
+  .clip-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px; margin-bottom: 6px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: grab;
+  }
+  .clip-row.dragging { opacity: 0.4; }
+  .clip-row.drag-over { border-color: var(--accent); }
+  .clip-row .grip { color: var(--muted); cursor: grab; user-select: none; }
+  .clip-row .info { flex: 1; min-width: 0; }
+  .clip-row .name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .clip-row .span { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .empty { color: var(--muted); text-align: center; padding: 24px 8px; font-style: italic; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .actions button { flex: 1; min-width: 100px; }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; max-width: 700px; width: 90%;
+    max-height: 80vh; overflow-y: auto;
+  }
+  .modal.wide { max-width: 1000px; }
+  .json-editor {
+    width: 100%; height: 60vh; resize: vertical;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; line-height: 1.5; white-space: pre; overflow: auto;
+    tab-size: 2; -moz-tab-size: 2;
+  }
+  .json-editor:focus { outline: 1px solid var(--accent); }
+  .json-status {
+    margin-top: 6px; font-size: 12px; min-height: 18px;
+    font-family: ui-monospace, monospace;
+    color: var(--muted);
+  }
+  .json-status[data-ok="ok"] { color: var(--good); }
+  .json-status[data-ok="bad"] { color: var(--danger); }
+  .modal h3 { margin: 0 0 12px; }
+  .modal pre {
+    background: var(--bg); padding: 12px; border-radius: 6px; overflow-x: auto;
+    font-family: ui-monospace, monospace; font-size: 12px; color: var(--accent-2);
+    border: 1px solid var(--border); margin: 8px 0;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--good); color: #0e1116; padding: 10px 16px; border-radius: 6px;
+    font-weight: 600; opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎤 Medley Studio</h1>
+  <div class="row">
+    <span id="folder-status" class="muted">No folder selected</span>
+    <label class="btn" title="Import a previously-exported medley.json">
+      Import medley…
+      <input type="file" id="json-picker" accept=".json,application/json">
+    </label>
+    <label class="btn" title="Add one or more individual video files (does not replace existing clips)">
+      Upload video(s)…
+      <input type="file" id="file-picker" accept="video/*" multiple>
+    </label>
+    <label class="btn" title="Pick a folder of videos (replaces existing clips)">
+      Choose folder…
+      <input type="file" id="folder-picker" webkitdirectory directory multiple accept="video/*">
+    </label>
+  </div>
+</header>
+
+<div class="container">
+  <div class="layout">
+
+    <div>
+      <details id="yt-panel" class="yt-panel" open>
+        <summary><h2 style="display:inline; margin:0;">Download from YouTube</h2></summary>
+        <div class="yt-body">
+          <textarea id="yt-urls" rows="3"
+            placeholder="One YouTube URL per line — e.g. https://www.youtube.com/watch?v=…"></textarea>
+          <div class="yt-options">
+            <label class="row" title="Download audio only (mp3 192k)">
+              <input type="checkbox" id="yt-audio"> <span>Audio only</span>
+            </label>
+            <label class="row" title="Cap video height in pixels (omit for best)">
+              <span>Max height:</span>
+              <input type="number" id="yt-quality" value="1080" min="144" step="1">
+              <span class="muted">px</span>
+            </label>
+            <label class="row" style="flex:1; min-width:200px;">
+              <span>Save to:</span>
+              <input type="text" id="yt-output" value="downloads/main" style="flex:1; min-width:120px;">
+            </label>
+          </div>
+          <div class="row" style="margin-top:8px; gap:8px;">
+            <button id="btn-yt-download" class="primary">⬇ Download</button>
+            <span id="yt-status" class="muted" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+          </div>
+          <div id="yt-mode-hint" class="muted" style="font-size:11px; margin-top:6px;"></div>
+        </div>
+      </details>
+
+      <h2>Source clips</h2>
+      <div id="clips" class="clips">
+        <div class="empty">Pick a folder of mp4 files to get started.</div>
+      </div>
+    </div>
+
+    <div class="resizer" id="resizer" title="Drag to resize the timeline column · double-click to reset"></div>
+
+    <aside class="timeline-panel">
+      <h2>Medley timeline</h2>
+      <div id="timeline-stats" class="timeline-stats">No clips yet.</div>
+
+      <div id="preview" class="preview" style="display:none;">
+        <div class="preview-stack">
+          <video id="preview-a" class="preview-video" preload="metadata" playsinline controls></video>
+          <video id="preview-b" class="preview-video preview-overlay" preload="metadata" playsinline></video>
+        </div>
+        <div class="preview-bar">
+          <button id="pv-prev"  title="Previous clip">⏮</button>
+          <button id="pv-back5" class="ghost" title="Back 5s">⏪</button>
+          <button id="pv-play"  class="primary" title="Play / Pause">▶</button>
+          <button id="pv-fwd5"  class="ghost" title="Forward 5s">⏩</button>
+          <button id="pv-next"  title="Next clip">⏭</button>
+          <button id="pv-stop"  class="ghost" title="Stop">⏹</button>
+          <span id="pv-status" class="muted">—</span>
+        </div>
+      </div>
+
+      <div id="timeline">
+        <div class="empty">Mark in/out on a video and add it here.</div>
+      </div>
+      <div class="opt-row" title="Smooth dissolve between adjacent clips. Each transition trims `duration` seconds off the end of clip A and the start of clip B and blends them. Both the browser preview and the rendered mp4 honor this setting.">
+        <label for="transition-dur">Crossfade:</label>
+        <input id="transition-dur" type="number" min="0" max="10" step="0.1" value="0">
+        <span>s between clips</span>
+      </div>
+
+      <div class="actions">
+        <button id="btn-preview" class="primary">▶ Preview medley</button>
+        <button id="btn-build">⬇ Build medley video</button>
+        <button id="btn-json-edit" class="ghost" title="Edit the cut list as JSON">{ } Edit JSON</button>
+        <button id="btn-export" class="ghost">Export medley.json only</button>
+        <button id="btn-clear" class="danger ghost">Clear all</button>
+      </div>
+
+      <div id="drop-final" class="drop-hint">
+        Drop the rendered <code>medley.mp4</code> here to preview or download it
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<div id="modal-bg" class="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title">Build command</h3>
+    <p class="muted" id="modal-desc"></p>
+    <pre id="modal-content"></pre>
+    <div class="row" style="justify-content: flex-end; margin-top: 12px;">
+      <button id="modal-copy">Copy</button>
+      <button id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">Copied</div>
+
+<script>
+'use strict';
+
+// ---------- environment ----------
+// medley_server.py injects window.MEDLEY_SERVER + MEDLEY_ROOT before </head>.
+// When absent, we're being opened via file:// or another static host and fall
+// back to copy-paste shell commands for downloads + builds.
+const SERVER_MODE = !!window.MEDLEY_SERVER;
+const SERVER_ROOT = window.MEDLEY_ROOT || '~/Documents/Claude/Projects/Medley';
+
+// ---------- state ----------
+const state = {
+  files: [],          // { name, file, url, duration }
+  timeline: [],       // { id, name, start, end }
+  folderName: '',
+};
+
+// Medley preview player state — separate from timeline state because we
+// don't want pause/play to feel like data mutation.
+const preview = {
+  active: false,    // is the preview currently visible/playing?
+  idx: 0,           // which timeline clip index is loaded
+  loadedFor: null,  // clip id we've already loaded (avoid reseeking on every tick)
+  activeKey: 'a',   // which of preview-a / preview-b is the foreground video
+  fading: false,    // are we mid-crossfade?
+  rafId: null,      // requestAnimationFrame id for the active fade
+};
+
+let nextId = 1;
+const $ = (sel) => document.querySelector(sel);
+
+// ---------- helpers ----------
+const fmt = (sec) => {
+  if (sec == null || isNaN(sec)) return '–';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toFixed(2).padStart(5, '0')}`;
+};
+// Accept "M:SS.sss", "SS.sss", or "SS" — return seconds, or null on bad input.
+const parseTime = (raw) => {
+  raw = String(raw).trim();
+  if (!raw) return null;
+  // Strip any trailing "s" suffix users sometimes type.
+  raw = raw.replace(/s$/i, '');
+  const parts = raw.split(':');
+  if (parts.length === 1) {
+    const v = parseFloat(parts[0]);
+    return isFinite(v) ? v : null;
+  }
+  if (parts.length === 2) {
+    const m = parseFloat(parts[0]);
+    const s = parseFloat(parts[1]);
+    return (isFinite(m) && isFinite(s)) ? m * 60 + s : null;
+  }
+  if (parts.length === 3) {
+    const h = parseFloat(parts[0]);
+    const m = parseFloat(parts[1]);
+    const s = parseFloat(parts[2]);
+    return (isFinite(h) && isFinite(m) && isFinite(s)) ? h * 3600 + m * 60 + s : null;
+  }
+  return null;
+};
+const toast = (msg) => {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 1400);
+};
+
+// ---------- file & folder pickers ----------
+// Some browsers (notably Safari with webkitdirectory) hand back File objects
+// with an empty .type, which makes the blob URL serve with no Content-Type
+// and the <video> element rejects it. We re-wrap with an explicit MIME via
+// Blob.slice() — that's a zero-copy view, not a real copy.
+function fileToVideoEntry(f) {
+  const ext = f.name.split('.').pop().toLowerCase();
+  const mime = (
+    ext === 'webm' ? 'video/webm' :
+    ext === 'mkv'  ? 'video/x-matroska' :
+    ext === 'mov'  ? 'video/quicktime' :
+                     'video/mp4'
+  );
+  const blob = f.type ? f : f.slice(0, f.size, mime);
+  return {
+    name: f.name,
+    file: f,
+    url: URL.createObjectURL(blob),
+    duration: null,
+  };
+}
+
+function setStatusFromState() {
+  const n = state.files.length;
+  if (!n) {
+    $('#folder-status').textContent = 'No videos loaded';
+  } else {
+    $('#folder-status').textContent = state.folderName
+      ? `${n} videos · ${state.folderName}`
+      : `${n} video${n === 1 ? '' : 's'}`;
+  }
+}
+
+// Folder picker — replaces the entire clips list.
+$('#folder-picker').addEventListener('change', (e) => {
+  const files = [...e.target.files].filter(f => /\.(mp4|m4v|mov|webm|mkv)$/i.test(f.name));
+  if (!files.length) {
+    alert('No video files found in that folder.');
+    return;
+  }
+  state.files.forEach(f => URL.revokeObjectURL(f.url));
+  state.files = files.map(fileToVideoEntry);
+  state.folderName = (files[0].webkitRelativePath || '').split('/')[0] || '';
+  setStatusFromState();
+  renderClips();
+});
+
+// Single-file (or multi-file) picker — APPENDS to the existing clips list,
+// de-duped by filename. This is the right tool when you have most of your
+// videos in a folder and want to drop in one extra clip from elsewhere.
+$('#file-picker').addEventListener('change', (e) => {
+  const incoming = [...e.target.files].filter(f => /\.(mp4|m4v|mov|webm|mkv)$/i.test(f.name));
+  if (!incoming.length) {
+    alert('No video files in that selection.');
+    return;
+  }
+  const seen = new Set(state.files.map(f => f.name));
+  let added = 0, skipped = 0;
+  for (const f of incoming) {
+    if (seen.has(f.name)) { skipped++; continue; }
+    state.files.push(fileToVideoEntry(f));
+    seen.add(f.name);
+    added++;
+  }
+  setStatusFromState();
+  renderClips();
+  let msg = `Added ${added} video${added === 1 ? '' : 's'}`;
+  if (skipped) msg += ` (skipped ${skipped} duplicate${skipped === 1 ? '' : 's'})`;
+  toast(msg);
+  e.target.value = ''; // allow picking the same file again later
+});
+
+// ---------- render source clips ----------
+function renderClips() {
+  const container = $('#clips');
+  container.innerHTML = '';
+  if (!state.files.length) {
+    container.innerHTML = '<div class="empty">Pick a folder of mp4 files to get started.</div>';
+    return;
+  }
+  state.files.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'clip-card';
+    card.dataset.idx = i;
+    card.innerHTML = `
+      <div class="clip-header">
+        <div class="clip-title">${escapeHtml(f.name)}</div>
+        <span class="muted" data-role="dur">–</span>
+      </div>
+      <div class="clip-body">
+        <div data-role="video-slot"></div>
+        <div class="err" data-role="err" style="display:none; color:var(--danger); font-size:12px; margin-top:8px; padding:8px; border:1px solid var(--danger); border-radius:4px; background:rgba(248,81,73,0.08);"></div>
+        <div class="clip-controls" style="margin-top:10px;">
+          <div class="ctrl-group" title="Skip backward / forward 5 seconds">
+            <button data-act="skip" data-skip="-5">⏪ 5s</button>
+            <button data-act="skip" data-skip="-1">−1</button>
+            <button data-act="skip" data-skip="1">+1</button>
+            <button data-act="skip" data-skip="5">5s ⏩</button>
+          </div>
+        </div>
+        <div class="clip-controls" style="margin-top:8px;">
+          <span class="pair-label">In</span>
+          <button data-act="markin" title="Set to current time">Mark</button>
+          <input class="ts-input" data-role="in-input" placeholder="–" inputmode="decimal">
+          <button data-act="goin" class="ghost" title="Seek to In">↦</button>
+          <span class="pair-label" style="margin-left:8px;">Out</span>
+          <button data-act="markout" title="Set to current time">Mark</button>
+          <input class="ts-input" data-role="out-input" placeholder="–" inputmode="decimal">
+          <button data-act="goout" class="ghost" title="Seek to Out">↦</button>
+        </div>
+        <div class="clip-controls" style="margin-top:8px;">
+          <button data-act="reset" class="ghost">Reset</button>
+          <button data-act="add" class="primary">Add to medley ↦</button>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+
+    // Build the video element programmatically so the blob URL never goes
+    // through HTML parsing (avoids any escaping surprises) and so we can
+    // attach event listeners *before* the source starts loading. Do NOT set
+    // crossOrigin: it triggers a CORS preflight that blob: URLs can't answer,
+    // and the browser will reject the source as "not supported".
+    const v = document.createElement('video');
+    v.controls = true;
+    v.preload = 'metadata';
+    v.playsInline = true;
+    const inInput = card.querySelector('[data-role=in-input]');
+    const outInput = card.querySelector('[data-role=out-input]');
+    const durEl = card.querySelector('[data-role=dur]');
+    const errEl = card.querySelector('[data-role=err]');
+    let inT = null, outT = null;
+
+    const refresh = () => {
+      // Show formatted times in the inputs unless the user is currently
+      // editing them (don't stomp on their keystrokes).
+      if (document.activeElement !== inInput)  inInput.value  = inT  != null ? fmt(inT)  : '';
+      if (document.activeElement !== outInput) outInput.value = outT != null ? fmt(outT) : '';
+      inInput.classList.toggle('invalid', false);
+      outInput.classList.toggle('invalid', false);
+    };
+    const onInputChange = (which, el) => {
+      const raw = el.value.trim();
+      if (!raw) {
+        if (which === 'in') inT = null; else outT = null;
+        el.classList.remove('invalid');
+        return;
+      }
+      const t = parseTime(raw);
+      if (t == null || t < 0 || (v.duration && t > v.duration)) {
+        el.classList.add('invalid');
+        return;
+      }
+      el.classList.remove('invalid');
+      if (which === 'in') inT = t; else outT = t;
+    };
+    inInput.addEventListener('change', () => onInputChange('in',  inInput));
+    outInput.addEventListener('change', () => onInputChange('out', outInput));
+    inInput.addEventListener('blur',   () => refresh());
+    outInput.addEventListener('blur',  () => refresh());
+
+    v.addEventListener('loadedmetadata', () => {
+      f.duration = v.duration;
+      durEl.textContent = fmt(v.duration);
+    });
+
+    v.addEventListener('error', () => {
+      const codes = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'src-not-supported' };
+      const reason = v.error ? (codes[v.error.code] || `code ${v.error.code}`) : 'unknown';
+      errEl.style.display = 'block';
+      errEl.innerHTML =
+        `<strong>This file failed to load (${reason}).</strong><br>` +
+        `If the same file plays fine in QuickTime / VLC, the codec is OK and the ` +
+        `issue is browser-level. Try a different browser (Chrome handles AV1/VP9 ` +
+        `that Safari refuses). If it fails everywhere, re-encode to plain ` +
+        `H.264/AAC with ffmpeg:` +
+        `<br><code style="display:block; margin-top:6px; padding:6px; background:#000; border-radius:3px;">ffmpeg -i "${escapeHtml(f.name)}" -c:v libx264 -c:a aac -movflags +faststart "fixed-${escapeHtml(f.name)}"</code>`;
+    });
+
+    // Attach src last, after listeners are wired up.
+    v.src = f.url;
+    card.querySelector('[data-role=video-slot]').appendChild(v);
+
+    card.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      const t = v.currentTime;
+      switch (btn.dataset.act) {
+        case 'markin':
+          inT = t; refresh();
+          break;
+        case 'markout':
+          outT = t; refresh();
+          break;
+        case 'goin':
+          if (inT != null) v.currentTime = inT;
+          break;
+        case 'goout':
+          if (outT != null) v.currentTime = outT;
+          break;
+        case 'skip': {
+          const delta = parseFloat(btn.dataset.skip || '0');
+          const d = v.duration || Infinity;
+          v.currentTime = Math.max(0, Math.min(d, v.currentTime + delta));
+          break;
+        }
+        case 'reset':
+          inT = outT = null; refresh();
+          break;
+        case 'add':
+          if (inT == null && outT == null) {
+            addToTimeline({ name: f.name, start: 0, end: f.duration ?? v.duration });
+          } else if (inT == null || outT == null) {
+            alert('Set both In and Out (or reset and use the whole clip).');
+            return;
+          } else if (outT <= inT) {
+            alert('Out point must be after In point.');
+            return;
+          } else {
+            addToTimeline({ name: f.name, start: inT, end: outT });
+          }
+          break;
+      }
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- timeline ----------
+function addToTimeline({ name, start, end }) {
+  state.timeline.push({ id: nextId++, name, start, end });
+  renderTimeline();
+  toast('Added to medley');
+}
+
+function renderTimeline() {
+  const tl = $('#timeline');
+  const stats = $('#timeline-stats');
+  if (!state.timeline.length) {
+    tl.innerHTML = '<div class="empty">Mark in/out on a video and add it here.</div>';
+    stats.textContent = 'No clips yet.';
+    return;
+  }
+  const total = state.timeline.reduce((s, c) => s + (c.end - c.start), 0);
+  const xfade = parseFloat($('#transition-dur').value) || 0;
+  const adj = xfade > 0 && state.timeline.length > 1
+    ? total - xfade * (state.timeline.length - 1)
+    : total;
+  stats.textContent =
+    `${state.timeline.length} clip${state.timeline.length === 1 ? '' : 's'} · ` +
+    `${fmt(adj)} output` +
+    (xfade > 0 && state.timeline.length > 1
+      ? ` · ${xfade}s crossfade × ${state.timeline.length - 1}`
+      : '');
+
+  tl.innerHTML = '';
+  state.timeline.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'clip-row';
+    row.draggable = true;
+    row.dataset.id = c.id;
+    if (preview.active && i === preview.idx) row.classList.add('playing');
+    const dur = c.end - c.start;
+    const willCutForXfade = xfade > 0 && (i > 0 || i < state.timeline.length - 1);
+    row.innerHTML = `
+      <span class="badge">${i + 1}</span>
+      <span class="grip" title="Drag to reorder">⋮⋮</span>
+      <div class="info">
+        <div class="name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</div>
+        <div class="span">${fmt(c.start)} → ${fmt(c.end)} · ${fmt(dur)}${
+          willCutForXfade && dur < xfade + 0.1
+            ? ` <span style="color:var(--danger);">⚠ shorter than crossfade</span>`
+            : ''
+        }</div>
+      </div>
+      <button data-act="play" class="ghost" title="Preview from this clip">▶</button>
+      <button data-act="up" class="ghost" title="Move up">▲</button>
+      <button data-act="down" class="ghost" title="Move down">▼</button>
+      <button data-act="del" class="danger ghost" title="Remove">✕</button>
+    `;
+    tl.appendChild(row);
+
+    // Insert a crossfade indicator between this row and the next.
+    if (xfade > 0 && i < state.timeline.length - 1) {
+      const xf = document.createElement('div');
+      xf.className = 'xfade-indicator';
+      xf.innerHTML = `
+        <span class="xfade-line"></span>
+        <span class="xfade-label">↕ ${xfade}s crossfade</span>
+        <span class="xfade-line"></span>
+      `;
+      tl.appendChild(xf);
+    }
+  });
+
+  // button handlers
+  tl.querySelectorAll('.clip-row').forEach((row) => {
+    const id = +row.dataset.id;
+    row.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      const idx = state.timeline.findIndex(x => x.id === id);
+      if (btn.dataset.act === 'del') state.timeline.splice(idx, 1);
+      if (btn.dataset.act === 'up' && idx > 0) {
+        [state.timeline[idx - 1], state.timeline[idx]] = [state.timeline[idx], state.timeline[idx - 1]];
+      }
+      if (btn.dataset.act === 'down' && idx < state.timeline.length - 1) {
+        [state.timeline[idx + 1], state.timeline[idx]] = [state.timeline[idx], state.timeline[idx + 1]];
+      }
+      if (btn.dataset.act === 'play') { startPreview(idx); return; }
+      renderTimeline();
+    });
+
+    // drag/drop reorder
+    row.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', String(id));
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('drag-over'); });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const fromId = +e.dataTransfer.getData('text/plain');
+      const fromIdx = state.timeline.findIndex(x => x.id === fromId);
+      const toIdx = state.timeline.findIndex(x => x.id === id);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+      const [moved] = state.timeline.splice(fromIdx, 1);
+      state.timeline.splice(toIdx, 0, moved);
+      renderTimeline();
+    });
+  });
+}
+
+// ---------- medley preview player ----------
+// Plays the timeline back-to-back. To support real crossfades (matching what
+// ffmpeg renders) we use TWO stacked <video> elements, "a" and "b". One is
+// the active foreground video; the other is preloaded with the next clip
+// hidden behind it. When the active video reaches `end - xfade`, we kick
+// off a crossfade: ramp opacity + volume on both elements over `xfade`
+// seconds, then swap roles.
+//
+// When xfade is 0 we degrade to the simpler "swap src on a single element"
+// flow — just snap to the next clip on `timeupdate` past the end.
+
+function findFile(name) {
+  return state.files.find(f => f.name === name);
+}
+
+const A = () => $('#preview-' + preview.activeKey);
+const B = () => $('#preview-' + (preview.activeKey === 'a' ? 'b' : 'a'));
+
+function startPreview(fromIdx = 0) {
+  if (!state.timeline.length) { alert('Add some clips first.'); return; }
+  preview.active = true;
+  preview.idx = Math.max(0, Math.min(fromIdx, state.timeline.length - 1));
+  preview.loadedFor = null;
+  preview.activeKey = 'a';
+  preview.fading = false;
+  resetVideo($('#preview-a'), { foreground: true });
+  resetVideo($('#preview-b'), { foreground: false });
+  $('#preview').style.display = 'block';
+  $('#btn-preview').textContent = '⏸ Hide preview';
+  loadAndPlayCurrent();
+  renderTimeline();
+}
+
+function stopPreview() {
+  preview.active = false;
+  preview.fading = false;
+  preview.loadedFor = null;
+  for (const v of [$('#preview-a'), $('#preview-b')]) {
+    v.pause();
+    v.removeAttribute('src');
+    v.load();
+    v.style.opacity = '';
+    v.style.pointerEvents = '';
+    v.removeAttribute('controls');
+  }
+  $('#preview').style.display = 'none';
+  $('#btn-preview').textContent = '▶ Preview medley';
+  $('#pv-status').textContent = '—';
+  renderTimeline();
+}
+
+// Configure a video for foreground (visible, controllable) or background.
+function resetVideo(v, { foreground }) {
+  v.pause();
+  v.style.opacity = foreground ? '1' : '0';
+  v.style.pointerEvents = foreground ? 'auto' : 'none';
+  v.volume = foreground ? 1 : 0;
+  if (foreground) v.setAttribute('controls', '');
+  else v.removeAttribute('controls');
+}
+
+// Promise that resolves once a video has metadata + we've sought to `time`.
+function loadVideoTo(v, file, time) {
+  return new Promise((resolve, reject) => {
+    const onMeta = () => {
+      v.removeEventListener('loadedmetadata', onMeta);
+      v.removeEventListener('error', onErr);
+      v.currentTime = time;
+      resolve();
+    };
+    const onErr = (e) => {
+      v.removeEventListener('loadedmetadata', onMeta);
+      v.removeEventListener('error', onErr);
+      reject(e);
+    };
+    v.addEventListener('loadedmetadata', onMeta);
+    v.addEventListener('error', onErr);
+    v.src = file.url;
+  });
+}
+
+function loadAndPlayCurrent() {
+  const clip = state.timeline[preview.idx];
+  if (!clip) { stopPreview(); return; }
+  const file = findFile(clip.name);
+  if (!file) {
+    $('#pv-status').textContent = `(missing source: ${clip.name})`;
+    setTimeout(() => advancePreview(+1), 600);
+    return;
+  }
+  const v = A();
+  resetVideo(v, { foreground: true });
+  resetVideo(B(), { foreground: false });
+  loadVideoTo(v, file, clip.start)
+    .then(() => v.play().catch(() => {}))
+    .catch(() => {});
+  preview.loadedFor = clip.id;
+  updatePvStatus();
+}
+
+// Snap to a clip without crossfading (used by Prev/Next/Stop).
+function snapTo(idx) {
+  // Cancel any in-flight fade.
+  if (preview.fading) {
+    preview.fading = false;
+    if (preview.rafId) cancelAnimationFrame(preview.rafId);
+  }
+  preview.idx = idx;
+  preview.loadedFor = null;
+  loadAndPlayCurrent();
+  renderTimeline();
+}
+
+function advancePreview(direction) {
+  const next = preview.idx + direction;
+  if (next < 0 || next >= state.timeline.length) {
+    stopPreview();
+    return;
+  }
+  snapTo(next);
+}
+
+function updatePvStatus() {
+  const clip = state.timeline[preview.idx];
+  if (!clip) return;
+  const xfade = parseFloat($('#transition-dur').value) || 0;
+  const fading = preview.fading ? ' · ✨ crossfading' : '';
+  $('#pv-status').textContent =
+    `Clip ${preview.idx + 1}/${state.timeline.length} · ${clip.name} · ` +
+    `${fmt(clip.start)} → ${fmt(clip.end)}${xfade > 0 ? ` · xfade ${xfade}s` : ''}${fading}`;
+}
+
+// Kick off a crossfade from the current clip into the clip at `toIdx`.
+// During the fade both videos play simultaneously and we ramp opacity +
+// volume with rAF for smoothness.
+function startCrossfade(toIdx) {
+  const fromClip = state.timeline[preview.idx];
+  const toClip = state.timeline[toIdx];
+  if (!fromClip || !toClip) return;
+  const toFile = findFile(toClip.name);
+  if (!toFile) {
+    // Can't fade into something we don't have — fall back to a hard cut.
+    advancePreview(+1);
+    return;
+  }
+  const xfade = parseFloat($('#transition-dur').value) || 0;
+  if (xfade <= 0) { advancePreview(+1); return; }
+
+  preview.fading = true;
+  const fromVid = A();
+  const toVid = B();
+
+  // Preload the next clip in the background slot.
+  loadVideoTo(toVid, toFile, toClip.start).then(() => {
+    toVid.volume = 0;
+    toVid.style.opacity = '0';
+    toVid.style.pointerEvents = 'none';
+    toVid.removeAttribute('controls');
+    toVid.play().catch(() => {});
+
+    const start = performance.now();
+    const dur = xfade * 1000;
+    const tick = (now) => {
+      if (!preview.active || !preview.fading) return; // user stopped/snapped
+      const t = Math.min(1, (now - start) / dur);
+      // Linear opacity + volume ramp. Equal-power (sqrt) would be more
+      // accurate for audio but linear is fine for short transitions.
+      fromVid.style.opacity = String(1 - t);
+      fromVid.volume = 1 - t;
+      toVid.style.opacity = String(t);
+      toVid.volume = t;
+      if (t < 1) {
+        preview.rafId = requestAnimationFrame(tick);
+      } else {
+        // Crossfade complete — swap roles.
+        fromVid.pause();
+        fromVid.style.opacity = '0';
+        fromVid.style.pointerEvents = 'none';
+        fromVid.removeAttribute('controls');
+        toVid.style.opacity = '1';
+        toVid.style.pointerEvents = 'auto';
+        toVid.volume = 1;
+        toVid.setAttribute('controls', '');
+        preview.activeKey = preview.activeKey === 'a' ? 'b' : 'a';
+        preview.idx = toIdx;
+        preview.loadedFor = toClip.id;
+        preview.fading = false;
+        updatePvStatus();
+        renderTimeline();
+      }
+    };
+    preview.rafId = requestAnimationFrame(tick);
+  }).catch(() => {
+    preview.fading = false;
+    advancePreview(+1);
+  });
+}
+
+// Hook up preview controls.
+$('#btn-preview').addEventListener('click', () => {
+  if (preview.active) stopPreview(); else startPreview(0);
+});
+$('#pv-play').addEventListener('click', () => {
+  // Toggle play/pause on whichever video is active. When fading, both videos
+  // play; pausing one pauses the moment, the user can resume to continue.
+  const v = A(), o = B();
+  if (v.paused) {
+    v.play().catch(() => {});
+    if (preview.fading) o.play().catch(() => {});
+  } else {
+    v.pause();
+    if (preview.fading) o.pause();
+  }
+});
+$('#pv-prev').addEventListener('click', () => advancePreview(-1));
+$('#pv-next').addEventListener('click', () => advancePreview(+1));
+$('#pv-stop').addEventListener('click', () => stopPreview());
+// ⏪ / ⏩ in the medley preview stay inside the active clip's marked
+// [start, end] range — these are "navigate within this clip" buttons, not
+// "explore the source" buttons. To jump between clips, use ⏮ / ⏭.
+$('#pv-back5').addEventListener('click', () => {
+  const v = A();
+  const clip = state.timeline[preview.idx];
+  const lo = clip ? clip.start : 0;
+  v.currentTime = Math.max(lo, v.currentTime - 5);
+});
+$('#pv-fwd5').addEventListener('click', () => {
+  const v = A();
+  const clip = state.timeline[preview.idx];
+  // Subtract a hair off clip.end so we don't immediately trigger end-detect
+  // and auto-advance to the next clip.
+  const hi = clip ? clip.end - 0.05 : (v.duration || 0);
+  v.currentTime = Math.min(hi, v.currentTime + 5);
+});
+
+// Both videos report timeupdate. Only act on the active one.
+function timeupdateHandler(ev) {
+  if (!preview.active || preview.fading) return;
+  if (ev.target !== A()) return;
+  const clip = state.timeline[preview.idx];
+  if (!clip) return;
+  const v = ev.target;
+  const xfade = parseFloat($('#transition-dur').value) || 0;
+  const last = preview.idx === state.timeline.length - 1;
+  if (xfade > 0 && !last && v.currentTime >= clip.end - xfade) {
+    startCrossfade(preview.idx + 1);
+  } else if (v.currentTime >= clip.end - 0.05) {
+    advancePreview(+1);
+  }
+}
+$('#preview-a').addEventListener('timeupdate', timeupdateHandler);
+$('#preview-b').addEventListener('timeupdate', timeupdateHandler);
+
+// play/pause icon syncs to whichever video is "active".
+function syncPlayIcon() {
+  const v = A();
+  $('#pv-play').textContent = v.paused ? '▶' : '⏸';
+}
+$('#preview-a').addEventListener('play',  syncPlayIcon);
+$('#preview-a').addEventListener('pause', syncPlayIcon);
+$('#preview-b').addEventListener('play',  syncPlayIcon);
+$('#preview-b').addEventListener('pause', syncPlayIcon);
+
+$('#preview-a').addEventListener('ended', () => { if (A() === $('#preview-a')) advancePreview(+1); });
+$('#preview-b').addEventListener('ended', () => { if (A() === $('#preview-b')) advancePreview(+1); });
+
+// ---------- export / import / build ----------
+function exportPayload() {
+  const xfade = parseFloat($('#transition-dur').value) || 0;
+  return {
+    folder: state.folderName,
+    output: 'medley.mp4',
+    transition_duration: +xfade.toFixed(2),
+    clips: state.timeline.map(c => ({
+      file: c.name,
+      start: +c.start.toFixed(3),
+      end: +c.end.toFixed(3),
+    })),
+  };
+}
+
+function downloadJson() {
+  const blob = new Blob([JSON.stringify(exportPayload(), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'medley.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+$('#btn-export').addEventListener('click', () => {
+  if (!state.timeline.length) { alert('Timeline is empty.'); return; }
+  downloadJson();
+  toast('Downloaded medley.json');
+});
+
+$('#btn-build').addEventListener('click', async () => {
+  if (!state.timeline.length) { alert('Timeline is empty.'); return; }
+
+  if (SERVER_MODE) {
+    // Server mode: actually run the build, then load the rendered file.
+    const btn = $('#btn-build');
+    btn.disabled = true;
+    btn.textContent = '⏳ Rendering…';
+    try {
+      const res = await fetch('/api/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cutlist: exportPayload(),
+          folder: $('#yt-output').value.trim() || 'downloads/main',
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast('Render complete');
+        loadRenderedFromServer(data.output);
+      } else {
+        showModal('Build failed', '', (data.stderr || data.stdout || '(no output)').trim());
+      }
+    } catch (e) {
+      alert('Server error: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⬇ Build medley video';
+    }
+    return;
+  }
+
+  // Static mode: produce a copy-paste command.
+  const json = JSON.stringify(exportPayload(), null, 2);
+  const cmd = [
+    '# Step 1: Click "Download JSON" below and put medley.json',
+    '#         in the same folder as your video files.',
+    '# Step 2: Run this in your terminal:',
+    '',
+    'python3 ~/Documents/Claude/Projects/Medley/build_medley.py medley.json',
+    '',
+    '# Output: medley.mp4 in the same folder.',
+    '# Drag that mp4 into the editor\'s drop zone to preview.',
+    '',
+    '# medley.json contents:',
+    json,
+  ].join('\n');
+  showBuildModal(cmd);
+});
+
+function loadRenderedFromServer(serverPath) {
+  // Build a modal with the server-served rendered file. Range support means
+  // the <video> tag can seek normally even on huge medleys.
+  const url = '/file?path=' + encodeURIComponent(serverPath);
+  const name = serverPath.split('/').pop() || 'medley.mp4';
+  const html = `
+    <video controls autoplay playsinline style="width:100%; max-height:60vh; background:#000; border-radius:6px;"></video>
+    <div class="row" style="justify-content:space-between; margin-top:10px;">
+      <span class="muted">${escapeHtml(serverPath)}</span>
+      <a class="btn" download="${escapeHtml(name)}" href="${url}" style="text-decoration:none;">⬇ Download</a>
+    </div>
+  `;
+  $('#modal-title').textContent = 'Rendered medley';
+  $('#modal-desc').textContent = '';
+  const content = $('#modal-content');
+  content.innerHTML = html;
+  content.querySelector('video').src = url;
+  hideModalExtras();
+  $('#modal-bg').classList.add('show');
+}
+
+function showBuildModal(cmd) {
+  $('#modal-title').textContent = 'Build the medley video';
+  let desc = 'Copy the command, run it in Terminal, then drag the resulting medley.mp4 ' +
+             'into the drop zone in the editor to preview/download it.';
+  // Best-effort auto-copy to clipboard so the user can paste straight away.
+  navigator.clipboard?.writeText(cmd).then(() => {
+    $('#modal-desc').textContent =
+      '✓ Copied to clipboard — paste in Terminal & hit Enter. ' +
+      'Drag the resulting medley.mp4 into the drop zone here to preview/download.';
+  }).catch(() => {/* clipboard might be blocked; modal still has the text */});
+  $('#modal-desc').textContent = desc;
+  $('#modal-content').textContent = cmd;
+  // Add a Download JSON button to the modal's action row, idempotently.
+  let dlBtn = document.getElementById('modal-dl-json');
+  if (!dlBtn) {
+    dlBtn = document.createElement('button');
+    dlBtn.id = 'modal-dl-json';
+    dlBtn.textContent = 'Download medley.json';
+    dlBtn.addEventListener('click', () => { downloadJson(); toast('Downloaded'); });
+    document.querySelector('#modal-bg .modal .row').prepend(dlBtn);
+  }
+  dlBtn.style.display = '';
+  $('#modal-bg').classList.add('show');
+}
+
+// Hide the Download-JSON button by default whenever any non-build modal opens.
+function hideModalExtras() {
+  const b = document.getElementById('modal-dl-json');
+  if (b) b.style.display = 'none';
+}
+
+// Import medley.json
+$('#json-picker').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!Array.isArray(data.clips)) throw new Error('No "clips" array.');
+    state.timeline = data.clips.map(c => ({
+      id: nextId++,
+      name: String(c.file || c.name || ''),
+      start: Number(c.start) || 0,
+      end: Number(c.end) || 0,
+    })).filter(c => c.name && c.end > c.start);
+    if (data.transition_duration != null) {
+      $('#transition-dur').value = String(data.transition_duration);
+    }
+    renderTimeline();
+    toast(`Loaded ${state.timeline.length} clip${state.timeline.length === 1 ? '' : 's'}`);
+    // Warn about clips whose source isn't loaded.
+    const missing = state.timeline.filter(c => !findFile(c.name)).map(c => c.name);
+    if (missing.length) {
+      alert(
+        `Imported ${state.timeline.length} clips, but ${missing.length} reference ` +
+        `files that aren't in your selected folder yet:\n\n` +
+        missing.slice(0, 8).join('\n') +
+        (missing.length > 8 ? `\n…(+${missing.length - 8} more)` : '') +
+        '\n\nPick a folder that contains them to enable preview.'
+      );
+    }
+  } catch (err) {
+    alert('Could not parse that file as medley.json:\n' + err.message);
+  }
+  e.target.value = ''; // allow re-importing the same file
+});
+
+// ---------- YouTube downloader ----------
+// Server mode (medley_server.py running) → POST to /api/download and refresh
+// the file list when complete.
+// File mode (file:// URL) → show a copy-paste shell command in the modal.
+
+// Track whether we've found a running server to redirect to. The probe runs
+// async on startup and updates the hint when it returns.
+let SERVER_REACHABLE = SERVER_MODE;
+const PROBE_URL = 'http://localhost:8765/api/health';
+const SERVER_URL = 'http://localhost:8765/';
+
+function renderModeHint() {
+  const hint = $('#yt-mode-hint');
+  if (SERVER_MODE) {
+    hint.innerHTML =
+      `<span style="color:var(--good);">●</span> Server mode — downloads run automatically.`;
+  } else if (SERVER_REACHABLE) {
+    hint.innerHTML =
+      `<span style="color:var(--good);">●</span> Local server is running at ` +
+      `<a href="${SERVER_URL}" style="color:var(--accent-2);">${SERVER_URL}</a> — ` +
+      `<a href="${SERVER_URL}" style="color:var(--accent-2); font-weight:600;">switch there for one-click downloads</a>.`;
+  } else {
+    hint.innerHTML =
+      `<span style="color:var(--muted);">○</span> Static mode — clicking Download copies a command to your clipboard ` +
+      `for you to paste in Terminal. For one-click downloads, run <code>python3 medley_server.py</code> ` +
+      `next to this HTML and reload via <code>${SERVER_URL}</code>.`;
+  }
+}
+renderModeHint();
+
+// In file:// mode, ping the server. If it responds, surface a banner so the
+// user can switch over without copying commands.
+if (!SERVER_MODE) {
+  // AbortSignal.timeout would be cleaner but isn't in older Safari; use
+  // a manual race instead.
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 1500);
+  fetch(PROBE_URL, { signal: ctl.signal })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      clearTimeout(timer);
+      if (data && data.ok) {
+        SERVER_REACHABLE = true;
+        renderModeHint();
+        showServerDetectedBanner();
+      }
+    })
+    .catch(() => { clearTimeout(timer); /* server not running */ });
+}
+
+function showServerDetectedBanner() {
+  if (document.getElementById('server-banner')) return;
+  const bar = document.createElement('div');
+  bar.id = 'server-banner';
+  bar.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    background: var(--good); color: #0e1116; padding: 8px 16px;
+    display: flex; align-items: center; gap: 12px; justify-content: center;
+    font-weight: 600; font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  `;
+  bar.innerHTML = `
+    <span>🟢 Local server detected — open on the server for one-click downloads & rendering</span>
+    <a href="${SERVER_URL}" style="background:#0e1116; color:var(--good); padding:4px 12px; border-radius:4px; text-decoration:none; font-weight:700;">Open on server →</a>
+    <button style="background:transparent; border:none; color:#0e1116; font-size:18px; cursor:pointer; padding:0 4px;" onclick="this.parentElement.remove()">×</button>
+  `;
+  document.body.prepend(bar);
+}
+
+function parseUrls(text) {
+  return [...new Set(
+    text.split('\n')
+      .map(s => s.trim())
+      .filter(s => s && !s.startsWith('#'))
+  )];
+}
+
+$('#btn-yt-download').addEventListener('click', async () => {
+  const urls = parseUrls($('#yt-urls').value);
+  if (!urls.length) { alert('Paste at least one URL.'); return; }
+  const audio = $('#yt-audio').checked;
+  const quality = parseInt($('#yt-quality').value, 10) || null;
+  const output = $('#yt-output').value.trim() || 'downloads/main';
+
+  if (SERVER_MODE) {
+    const btn = $('#btn-yt-download');
+    const status = $('#yt-status');
+    btn.disabled = true;
+    btn.textContent = '⏳ Downloading…';
+    status.textContent = `${urls.length} URL${urls.length === 1 ? '' : 's'}…`;
+    try {
+      const res = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls, audio, quality, output }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        status.innerHTML = `<span style="color:var(--good);">✓</span> Done. Saved to <code>${escapeHtml(data.output)}</code>`;
+        toast(`Downloaded ${urls.length} video${urls.length === 1 ? '' : 's'}`);
+        $('#yt-urls').value = '';
+        // Refresh source clips list if we're showing that folder.
+        await refreshFromServer(data.output);
+      } else {
+        status.innerHTML = `<span style="color:var(--danger);">✗</span> Failed (exit ${data.exit_code}).`;
+        showModal('Download failed', '', (data.stderr || data.stdout || '(no output)').trim());
+      }
+    } catch (e) {
+      status.innerHTML = `<span style="color:var(--danger);">✗</span> Server error: ${escapeHtml(e.message)}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⬇ Download';
+    }
+    return;
+  }
+
+  // Static mode: produce a copy-paste command. Also try to put it directly
+  // on the clipboard so the user just pastes & runs.
+  const flags = [
+    `-o "${output.replace(/"/g, '\\"')}"`,
+    audio ? '-a' : '',
+    quality ? `-q ${quality}` : '',
+  ].filter(Boolean).join(' ');
+  const urlArgs = urls.map(u => `"${u.replace(/"/g, '\\"')}"`).join(' \\\n  ');
+  const cmd = [
+    '# Run from the folder where youtube_downloader.py lives,',
+    `# or use the absolute path: ${SERVER_ROOT}/youtube_downloader.py`,
+    '',
+    `python3 youtube_downloader.py ${flags} \\`,
+    `  ${urlArgs}`,
+    '',
+    `# After it finishes, re-pick your folder so the editor sees the new files.`,
+  ].join('\n');
+  let desc = 'Copy this command and run it in Terminal.';
+  try {
+    await navigator.clipboard.writeText(cmd);
+    desc = '✓ Copied to clipboard — paste in Terminal & hit Enter. (Modal shows the same text in case you need it again.)';
+  } catch {/* clipboard requires a user gesture or HTTPS — modal still works */}
+  showModal('Download these YouTube videos', desc, cmd);
+});
+
+// Server-mode helper: fetch the file list and rebuild source clips.
+async function refreshFromServer(folder) {
+  if (!SERVER_MODE) return;
+  try {
+    const res = await fetch('/api/files?folder=' + encodeURIComponent(folder));
+    const data = await res.json();
+    if (data.error) { console.warn(data.error); return; }
+    state.files.forEach(f => URL.revokeObjectURL(f.url));
+    state.files = data.files.map(f => ({
+      name: f.name,
+      file: null,
+      url: '/file?path=' + encodeURIComponent(f.path),
+      duration: null,
+    }));
+    state.folderName = data.folder.split('/').pop() || data.folder;
+    $('#folder-status').textContent = `${state.files.length} videos · ${state.folderName} (server)`;
+    renderClips();
+  } catch (e) {
+    console.warn('refresh failed:', e);
+  }
+}
+
+// In server mode, auto-load the default downloads folder on page load.
+if (SERVER_MODE) {
+  refreshFromServer($('#yt-output').value.trim() || 'downloads/main');
+}
+
+// Drop zone for the rendered medley.mp4 — lets the user preview/download it
+// from the editor without leaving the page.
+const drop = $('#drop-final');
+drop.addEventListener('click', () => {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'video/*';
+  inp.onchange = () => loadRendered(inp.files[0]);
+  inp.click();
+});
+['dragenter', 'dragover'].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('dragover'); }));
+drop.addEventListener('drop', e => {
+  const f = [...e.dataTransfer.files].find(f => f.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v)$/i.test(f.name));
+  if (f) loadRendered(f); else alert('That doesn\'t look like a video.');
+});
+
+function loadRendered(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file.type ? file : file.slice(0, file.size, 'video/mp4'));
+  const html = `
+    <video controls autoplay playsinline style="width:100%; max-height:60vh; background:#000; border-radius:6px;"></video>
+    <div class="row" style="justify-content:space-between; margin-top:10px;">
+      <span class="muted">${escapeHtml(file.name)} · ${(file.size / (1024 * 1024)).toFixed(1)} MB</span>
+      <a class="btn" download="${escapeHtml(file.name)}" href="${url}" style="text-decoration:none;">⬇ Download</a>
+    </div>
+  `;
+  $('#modal-title').textContent = 'Rendered medley';
+  $('#modal-desc').textContent = '';
+  const content = $('#modal-content');
+  content.innerHTML = html;
+  content.querySelector('video').src = url;
+  hideModalExtras();
+  $('#modal-bg').classList.add('show');
+}
+
+$('#btn-clear').addEventListener('click', () => {
+  if (state.timeline.length && !confirm('Clear the entire timeline?')) return;
+  state.timeline = [];
+  renderTimeline();
+});
+
+// Live-refresh the timeline indicators when the crossfade value changes.
+$('#transition-dur').addEventListener('input', () => renderTimeline());
+
+// ---------- JSON editor ----------
+// Opens the cut list (the same payload that Export produces) in an editable
+// textarea, with live JSON validation. Apply rebuilds the timeline so what
+// you see is what gets rendered.
+$('#btn-json-edit').addEventListener('click', () => {
+  showJsonEditor(JSON.stringify(exportPayload(), null, 2));
+});
+
+function showJsonEditor(initialJson) {
+  $('#modal-title').textContent = 'Edit medley JSON';
+  $('#modal-desc').textContent =
+    'Edit the cut list directly. Click Apply to rebuild the timeline from this JSON. ' +
+    'Tab inserts 2 spaces. Format reindents the document.';
+
+  const content = $('#modal-content');
+  content.innerHTML = `
+    <textarea class="json-editor" id="json-editor-text" spellcheck="false"></textarea>
+    <div class="json-status" id="json-editor-status">—</div>
+    <div class="row" style="justify-content:space-between; gap:8px; margin-top:8px; flex-wrap:wrap;">
+      <span class="muted" style="font-size:11px;">
+        <span data-role="lines">0</span> lines ·
+        <span data-role="clipcount">0</span> clips ·
+        <span data-role="duration">0:00</span> total
+      </span>
+      <div class="row" style="gap:6px;">
+        <button id="json-fmt-btn" class="ghost">Format</button>
+        <button id="json-revert-btn" class="ghost">Revert</button>
+        <button id="json-apply-btn" class="primary">Apply changes</button>
+      </div>
+    </div>
+  `;
+
+  const ta = content.querySelector('#json-editor-text');
+  const status = content.querySelector('#json-editor-status');
+  const linesEl = content.querySelector('[data-role=lines]');
+  const clipsEl = content.querySelector('[data-role=clipcount]');
+  const durEl = content.querySelector('[data-role=duration]');
+  ta.value = initialJson;
+
+  // Validate the textarea's JSON. Returns parsed payload on success, else
+  // null. Updates the status line and stat counters either way.
+  const validate = () => {
+    linesEl.textContent = ta.value.split('\n').length;
+    let data;
+    try {
+      data = JSON.parse(ta.value);
+    } catch (e) {
+      // V8/Safari include a position; let's surface the line if we can.
+      const m = e.message.match(/position (\d+)/i);
+      let where = '';
+      if (m) {
+        const pos = +m[1];
+        const line = ta.value.slice(0, pos).split('\n').length;
+        where = ` (line ${line})`;
+      }
+      status.textContent = '✗ ' + e.message + where;
+      status.dataset.ok = 'bad';
+      return null;
+    }
+    if (!data || typeof data !== 'object') {
+      status.textContent = '✗ Top-level value must be an object.';
+      status.dataset.ok = 'bad';
+      return null;
+    }
+    if (!Array.isArray(data.clips)) {
+      status.textContent = '✗ Missing "clips" array.';
+      status.dataset.ok = 'bad';
+      return null;
+    }
+    for (let i = 0; i < data.clips.length; i++) {
+      const c = data.clips[i];
+      if (!c || typeof c !== 'object') {
+        status.textContent = `✗ Clip ${i + 1} is not an object.`;
+        status.dataset.ok = 'bad'; return null;
+      }
+      if (!c.file || typeof c.file !== 'string') {
+        status.textContent = `✗ Clip ${i + 1} is missing "file".`;
+        status.dataset.ok = 'bad'; return null;
+      }
+      if (typeof c.start !== 'number' || typeof c.end !== 'number') {
+        status.textContent = `✗ Clip ${i + 1} needs numeric "start" and "end".`;
+        status.dataset.ok = 'bad'; return null;
+      }
+      if (c.end <= c.start) {
+        status.textContent = `✗ Clip ${i + 1}: end (${c.end}) must be greater than start (${c.start}).`;
+        status.dataset.ok = 'bad'; return null;
+      }
+    }
+    const total = data.clips.reduce((s, c) => s + (c.end - c.start), 0);
+    const xfade = +(data.transition_duration || 0);
+    const adj = xfade > 0 ? total - xfade * (data.clips.length - 1) : total;
+    status.textContent = `✓ Valid · ${data.clips.length} clip${data.clips.length === 1 ? '' : 's'}`
+      + (xfade > 0 ? ` · ${xfade}s crossfade → ${fmt(adj)} output` : ` · ${fmt(total)} output`);
+    status.dataset.ok = 'ok';
+    clipsEl.textContent = data.clips.length;
+    durEl.textContent = fmt(adj);
+    return data;
+  };
+
+  // Tab key inserts 2 spaces (a basic convenience that turns the textarea
+  // from "an awkward thing" into "a passable code editor").
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      const s = ta.selectionStart, eend = ta.selectionEnd;
+      ta.value = ta.value.slice(0, s) + '  ' + ta.value.slice(eend);
+      ta.selectionStart = ta.selectionEnd = s + 2;
+      validate();
+    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      // Cmd/Ctrl+Enter applies.
+      e.preventDefault();
+      content.querySelector('#json-apply-btn').click();
+    } else if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+      // Cmd/Ctrl+S → Format
+      e.preventDefault();
+      content.querySelector('#json-fmt-btn').click();
+    }
+  });
+  ta.addEventListener('input', validate);
+
+  // Format: parse and re-stringify with 2-space indent.
+  content.querySelector('#json-fmt-btn').addEventListener('click', () => {
+    const data = validate();
+    if (!data) return;
+    ta.value = JSON.stringify(data, null, 2);
+    validate();
+    toast('Formatted');
+  });
+
+  // Revert: restore initial value.
+  content.querySelector('#json-revert-btn').addEventListener('click', () => {
+    if (ta.value !== initialJson && !confirm('Discard your edits?')) return;
+    ta.value = initialJson;
+    validate();
+  });
+
+  // Apply: rebuild the timeline + crossfade input from the parsed JSON.
+  content.querySelector('#json-apply-btn').addEventListener('click', () => {
+    const data = validate();
+    if (!data) { alert('Fix errors before applying — see status line.'); return; }
+    state.timeline = data.clips.map(c => ({
+      id: nextId++,
+      name: String(c.file),
+      start: Number(c.start),
+      end: Number(c.end),
+    }));
+    if (data.transition_duration != null) {
+      $('#transition-dur').value = String(data.transition_duration);
+    }
+    renderTimeline();
+    toast(`Applied ${state.timeline.length} clip${state.timeline.length === 1 ? '' : 's'}`);
+    $('#modal-bg').classList.remove('show');
+    $('#modal-bg').querySelector('.modal').classList.remove('wide');
+  });
+
+  hideModalExtras();
+  $('#modal-bg').classList.add('show');
+  $('#modal-bg').querySelector('.modal').classList.add('wide');
+  validate();
+  // Auto-focus on a small timeout so the modal animation doesn't steal it.
+  setTimeout(() => ta.focus(), 50);
+}
+
+// ---------- modal ----------
+function showModal(title, desc, content) {
+  $('#modal-title').textContent = title;
+  $('#modal-desc').textContent = desc || '';
+  $('#modal-content').textContent = content;
+  $('#modal-bg').classList.add('show');
+}
+function closeModal() {
+  $('#modal-bg').classList.remove('show');
+  $('#modal-bg').querySelector('.modal').classList.remove('wide');
+}
+$('#modal-close').addEventListener('click', closeModal);
+$('#modal-bg').addEventListener('click', (e) => { if (e.target.id === 'modal-bg') closeModal(); });
+$('#modal-copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('#modal-content').textContent);
+    toast('Copied');
+  } catch { alert('Copy failed — select the text manually.'); }
+});
+
+// keyboard shortcut: 'i' = mark in, 'o' = mark out on the active (last-clicked) video
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key !== 'i' && e.key !== 'o') return;
+  const v = document.activeElement?.closest?.('.clip-card')?.querySelector('video')
+    || [...document.querySelectorAll('video')].find(v => !v.paused);
+  if (!v) return;
+  const card = v.closest('.clip-card');
+  const btn = card.querySelector(e.key === 'i' ? '[data-act=markin]' : '[data-act=markout]');
+  btn?.click();
+});
+
+// ---------- column resizer ----------
+// The timeline column has a CSS variable --timeline-width that the layout
+// reads. Drag the .resizer to update it; persist across reloads.
+(function setupResizer() {
+  const TL_KEY = 'medley.timelineWidth';
+  const MIN_W = 280;
+  const MAX_W = 900;
+  const DEFAULT_W = 380;
+
+  const root = document.documentElement;
+  const resizer = $('#resizer');
+
+  // Restore saved width.
+  try {
+    const saved = parseFloat(localStorage.getItem(TL_KEY));
+    if (isFinite(saved) && saved >= MIN_W && saved <= MAX_W) {
+      root.style.setProperty('--timeline-width', saved + 'px');
+    }
+  } catch {}
+
+  function readCurrentWidth() {
+    const v = parseFloat(getComputedStyle(root).getPropertyValue('--timeline-width'));
+    return isFinite(v) ? v : DEFAULT_W;
+  }
+
+  function startDrag(clientX) {
+    const startW = readCurrentWidth();
+    resizer.classList.add('dragging');
+    document.body.classList.add('is-resizing');
+
+    const onMove = (cx) => {
+      // Layout is [content | resizer | timeline]; dragging right (positive
+      // dx) shrinks the timeline since it lives on the right side.
+      const dx = cx - clientX;
+      const newW = Math.max(MIN_W, Math.min(MAX_W, startW - dx));
+      root.style.setProperty('--timeline-width', newW + 'px');
+    };
+    const onMouseMove = (e) => onMove(e.clientX);
+    const onTouchMove = (e) => { if (e.touches[0]) onMove(e.touches[0].clientX); };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onUp);
+      resizer.classList.remove('dragging');
+      document.body.classList.remove('is-resizing');
+      try {
+        localStorage.setItem(TL_KEY, String(readCurrentWidth()));
+      } catch {}
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+  }
+
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startDrag(e.clientX);
+  });
+  resizer.addEventListener('touchstart', (e) => {
+    if (!e.touches[0]) return;
+    e.preventDefault();
+    startDrag(e.touches[0].clientX);
+  }, { passive: false });
+
+  // Double-click to reset to default.
+  resizer.addEventListener('dblclick', () => {
+    root.style.setProperty('--timeline-width', DEFAULT_W + 'px');
+    try { localStorage.removeItem(TL_KEY); } catch {}
+  });
+})();
+
+renderTimeline();
+</script>
+</body>
+</html>
