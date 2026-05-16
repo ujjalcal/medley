@@ -10,11 +10,13 @@
     --panel-2: #1d2330;
     --text: #e6edf3;
     --muted: #8b949e;
-    --accent: #f78166;
+    --accent: #2997ff;
     --accent-2: #58a6ff;
+    --accent-soft: rgba(41, 151, 255, 0.10);
     --good: #3fb950;
     --danger: #f85149;
     --border: #30363d;
+    --ease: 0.15s ease;
   }
   * { box-sizing: border-box; }
   :root { --nav-width: 180px; }
@@ -22,10 +24,11 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.5;
     padding-left: var(--nav-width);
+    -webkit-font-smoothing: antialiased;
   }
 
   /* Left navigation rail — shared with /pitch. */
@@ -54,7 +57,11 @@
     color: var(--text); background: var(--bg);
     border-left-color: var(--accent);
   }
-  .nav-icon { font-size: 16px; width: 18px; text-align: center; flex-shrink: 0; }
+  .nav-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; flex-shrink: 0;
+  }
+  .nav-icon svg { width: 18px; height: 18px; display: block; }
   .nav-spacer { flex: 1; }
   .nav-tool {
     background: none; border: none; color: var(--muted);
@@ -84,6 +91,9 @@
     --text: #1d1d1f;
     --muted: #6e6e73;
     --border: #d2d2d7;
+    --accent: #0071e3;
+    --accent-2: #4f7ed8;
+    --accent-soft: rgba(0, 113, 227, 0.08);
   }
   :root[data-theme="light"] .nav-rail { box-shadow: 0 0 0 1px rgba(0,0,0,0.04); }
   :root[data-theme="light"] header { box-shadow: 0 1px 0 rgba(0,0,0,0.04); }
@@ -111,13 +121,22 @@
     border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
+    font-weight: 500;
     font-family: inherit;
-    transition: background 0.1s, border-color 0.1s;
+    transition: background var(--ease), border-color var(--ease),
+                box-shadow var(--ease), filter var(--ease);
   }
-  button:hover, label.btn:hover { background: #262d3b; border-color: #4a5060; }
+  button:hover, label.btn:hover { background: var(--panel); border-color: var(--muted); }
+  button:focus-visible, label.btn:focus-visible {
+    outline: none; box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent);
+  }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #0e1116; font-weight: 600; }
-  button.primary:hover { background: #ff9478; }
+  button.primary {
+    background: var(--accent); border-color: var(--accent); color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  button.primary:hover { filter: brightness(1.08); box-shadow: 0 2px 5px rgba(0,0,0,0.12); }
+  button.primary:disabled { filter: none; box-shadow: none; }
   button.danger { color: var(--danger); }
   button.ghost { background: transparent; }
   input[type=file] { display: none; }
@@ -221,7 +240,7 @@
     margin-top: 10px; padding: 12px; border: 2px dashed var(--border); border-radius: 6px;
     text-align: center; color: var(--muted); font-size: 12px; cursor: pointer;
   }
-  .drop-hint.dragover { border-color: var(--accent); color: var(--accent); background: rgba(247,129,102,0.05); }
+  .drop-hint.dragover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
   /* Inline rendered-medley preview — same slot as the drop hint, swapped in
      on build success or after a manual drop. */
@@ -230,7 +249,7 @@
     border-radius: 6px; background: var(--bg); cursor: default; text-align: left;
   }
   #drop-final.rendered-inline.dragover {
-    border-color: var(--accent); background: rgba(247,129,102,0.05);
+    border-color: var(--accent); background: var(--accent-soft);
   }
   .rendered-video {
     width: 100%; max-height: 360px; background: #000;
@@ -270,7 +289,7 @@
   .preview-bar button { padding: 4px 10px; font-size: 13px; }
   .preview-bar button.primary { padding: 4px 14px; }
   #pv-status { font-size: 11px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .clip-row.playing { border-color: var(--accent); background: rgba(247,129,102,0.08); }
+  .clip-row.playing { border-color: var(--accent); background: var(--accent-soft); }
   .xfade-indicator {
     display: flex; align-items: center; gap: 8px;
     margin: -2px 16px 4px;
@@ -369,22 +388,22 @@
 <nav class="nav-rail">
   <div class="nav-brand">Studios</div>
   <a href="/" class="nav-link is-active" title="Medley Studio">
-    <span class="nav-icon">🎤</span><span class="nav-label">Medley</span>
+    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="6" height="11" x="9" y="2" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span><span class="nav-label">Medley</span>
   </a>
   <a href="/pitch" class="nav-link" title="Pitch Studio">
-    <span class="nav-icon">🎵</span><span class="nav-label">Pitch</span>
+    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Pitch</span>
   </a>
   <div class="nav-spacer"></div>
   <button class="nav-tool" id="nav-theme" type="button" title="Toggle theme">
-    <span class="nav-icon">🌙</span><span class="nav-label">Dark</span>
+    <span class="nav-icon"></span><span class="nav-label">Dark</span>
   </button>
   <button class="nav-tool" id="nav-collapse" type="button" title="Collapse sidebar">
-    <span class="nav-icon">«</span><span class="nav-label">Collapse</span>
+    <span class="nav-icon"></span><span class="nav-label">Collapse</span>
   </button>
 </nav>
 
 <header>
-  <h1>🎤 Medley Studio</h1>
+  <h1>Medley Studio</h1>
   <div class="row">
     <span id="folder-status" class="muted">No folder selected</span>
     <label class="btn" title="Import a previously-exported medley.json">
@@ -517,13 +536,20 @@
   const cBtn = document.getElementById('nav-collapse');
   const tBtn = document.getElementById('nav-theme');
 
+  const ICONS = {
+    chevLeft:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+    chevRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+    moon:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+    sun:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  };
+
   function syncLabels() {
     const collapsed = root.getAttribute('data-nav') === 'collapsed';
     const light = root.getAttribute('data-theme') === 'light';
-    cBtn.querySelector('.nav-icon').textContent = collapsed ? '»' : '«';
+    cBtn.querySelector('.nav-icon').innerHTML = collapsed ? ICONS.chevRight : ICONS.chevLeft;
     cBtn.querySelector('.nav-label').textContent = collapsed ? 'Expand' : 'Collapse';
     cBtn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-    tBtn.querySelector('.nav-icon').textContent = light ? '☀️' : '🌙';
+    tBtn.querySelector('.nav-icon').innerHTML = light ? ICONS.sun : ICONS.moon;
     tBtn.querySelector('.nav-label').textContent = light ? 'Light' : 'Dark';
     tBtn.title = light ? 'Switch to dark theme' : 'Switch to Apple-style light theme';
   }
