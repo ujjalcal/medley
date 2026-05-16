@@ -165,37 +165,6 @@
     .resizer { display: none; }
   }
 
-  /* YouTube downloader panel */
-  .yt-panel {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-    margin-bottom: 14px; overflow: hidden;
-  }
-  .yt-panel summary {
-    list-style: none; cursor: pointer; padding: 10px 14px;
-    background: var(--panel-2); border-bottom: 1px solid transparent;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .yt-panel[open] summary { border-bottom-color: var(--border); }
-  .yt-panel summary::before { content: "▾"; color: var(--muted); transition: transform 0.15s; }
-  .yt-panel:not([open]) summary::before { transform: rotate(-90deg); }
-  .yt-panel summary::-webkit-details-marker { display: none; }
-  .yt-body { padding: 12px 14px; }
-  .yt-body textarea {
-    width: 100%; resize: vertical; min-height: 60px;
-    background: var(--bg); color: var(--text); border: 1px solid var(--border);
-    border-radius: 6px; padding: 8px 10px;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
-  }
-  .yt-body textarea:focus { outline: 1px solid var(--accent); }
-  .yt-options { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; }
-  .yt-options label { gap: 6px; }
-  .yt-options input[type=number] { width: 70px; }
-  .yt-options input[type=text], .yt-options input[type=number] {
-    background: var(--bg); color: var(--text); border: 1px solid var(--border);
-    border-radius: 4px; padding: 4px 8px; font-family: ui-monospace, monospace; font-size: 12px;
-  }
-  .yt-options input:focus { outline: 1px solid var(--accent); }
-
   /* Source clips panel */
   .clips { display: flex; flex-direction: column; gap: 12px; }
   .clip-card {
@@ -393,6 +362,9 @@
   <a href="/pitch" class="nav-link" title="Pitch Studio">
     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Pitch</span>
   </a>
+  <a href="/download" class="nav-link" title="Download from YouTube">
+    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span><span class="nav-label">Download</span>
+  </a>
   <div class="nav-spacer"></div>
   <button class="nav-tool" id="nav-theme" type="button" title="Toggle theme">
     <span class="nav-icon"></span><span class="nav-label">Dark</span>
@@ -425,33 +397,6 @@
   <div class="layout">
 
     <div>
-      <details id="yt-panel" class="yt-panel" open>
-        <summary><h2 style="display:inline; margin:0;">Download from YouTube</h2></summary>
-        <div class="yt-body">
-          <textarea id="yt-urls" rows="3"
-            placeholder="One YouTube URL per line — e.g. https://www.youtube.com/watch?v=…"></textarea>
-          <div class="yt-options">
-            <label class="row" title="Download audio only (mp3 192k)">
-              <input type="checkbox" id="yt-audio"> <span>Audio only</span>
-            </label>
-            <label class="row" title="Cap video height in pixels (omit for best)">
-              <span>Max height:</span>
-              <input type="number" id="yt-quality" value="1080" min="144" step="1">
-              <span class="muted">px</span>
-            </label>
-            <label class="row" style="flex:1; min-width:200px;">
-              <span>Save to:</span>
-              <input type="text" id="yt-output" value="downloads/main" style="flex:1; min-width:120px;">
-            </label>
-          </div>
-          <div class="row" style="margin-top:8px; gap:8px;">
-            <button id="btn-yt-download" class="primary">⬇ Download</button>
-            <span id="yt-status" class="muted" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
-          </div>
-          <div id="yt-mode-hint" class="muted" style="font-size:11px; margin-top:6px;"></div>
-        </div>
-      </details>
-
       <h2>Source clips</h2>
       <div id="clips" class="clips">
         <div class="empty">Pick a folder of mp4 files to get started.</div>
@@ -1303,7 +1248,7 @@ $('#btn-build').addEventListener('click', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cutlist: exportPayload(),
-          folder: $('#yt-output').value.trim() || 'downloads/main',
+          folder: state.serverFolder || 'downloads/main',
           pitch: parseInt($('#pitch-semi').value || '0', 10),
         }),
       });
@@ -1415,38 +1360,10 @@ $('#json-picker').addEventListener('change', async (e) => {
   e.target.value = ''; // allow re-importing the same file
 });
 
-// ---------- YouTube downloader ----------
-// Server mode (medley_server.py running) → POST to /api/download and refresh
-// the file list when complete.
-// File mode (file:// URL) → show a copy-paste shell command in the modal.
-
-// Track whether we've found a running server to redirect to. The probe runs
-// async on startup and updates the hint when it returns.
-let SERVER_REACHABLE = SERVER_MODE;
+// ---------- server probe (banner when running in file:// mode) ----------
 const PROBE_URL = 'http://localhost:8765/api/health';
 const SERVER_URL = 'http://localhost:8765/';
 
-function renderModeHint() {
-  const hint = $('#yt-mode-hint');
-  if (SERVER_MODE) {
-    hint.innerHTML =
-      `<span style="color:var(--good);">●</span> Server mode — downloads run automatically.`;
-  } else if (SERVER_REACHABLE) {
-    hint.innerHTML =
-      `<span style="color:var(--good);">●</span> Local server is running at ` +
-      `<a href="${SERVER_URL}" style="color:var(--accent-2);">${SERVER_URL}</a> — ` +
-      `<a href="${SERVER_URL}" style="color:var(--accent-2); font-weight:600;">switch there for one-click downloads</a>.`;
-  } else {
-    hint.innerHTML =
-      `<span style="color:var(--muted);">○</span> Static mode — clicking Download copies a command to your clipboard ` +
-      `for you to paste in Terminal. For one-click downloads, run <code>python3 medley_server.py</code> ` +
-      `next to this HTML and reload via <code>${SERVER_URL}</code>.`;
-  }
-}
-renderModeHint();
-
-// In file:// mode, ping the server. If it responds, surface a banner so the
-// user can switch over without copying commands.
 if (!SERVER_MODE) {
   // AbortSignal.timeout would be cleaner but isn't in older Safari; use
   // a manual race instead.
@@ -1456,11 +1373,7 @@ if (!SERVER_MODE) {
     .then(r => r.ok ? r.json() : null)
     .then(data => {
       clearTimeout(timer);
-      if (data && data.ok) {
-        SERVER_REACHABLE = true;
-        renderModeHint();
-        showServerDetectedBanner();
-      }
+      if (data && data.ok) showServerDetectedBanner();
     })
     .catch(() => { clearTimeout(timer); /* server not running */ });
 }
@@ -1477,84 +1390,14 @@ function showServerDetectedBanner() {
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   `;
   bar.innerHTML = `
-    <span>🟢 Local server detected — open on the server for one-click downloads & rendering</span>
+    <span>🟢 Local server detected — open on the server for one-click rendering</span>
     <a href="${SERVER_URL}" style="background:#0e1116; color:var(--good); padding:4px 12px; border-radius:4px; text-decoration:none; font-weight:700;">Open on server →</a>
     <button style="background:transparent; border:none; color:#0e1116; font-size:18px; cursor:pointer; padding:0 4px;" onclick="this.parentElement.remove()">×</button>
   `;
   document.body.prepend(bar);
 }
 
-function parseUrls(text) {
-  return [...new Set(
-    text.split('\n')
-      .map(s => s.trim())
-      .filter(s => s && !s.startsWith('#'))
-  )];
-}
-
-$('#btn-yt-download').addEventListener('click', async () => {
-  const urls = parseUrls($('#yt-urls').value);
-  if (!urls.length) { alert('Paste at least one URL.'); return; }
-  const audio = $('#yt-audio').checked;
-  const quality = parseInt($('#yt-quality').value, 10) || null;
-  const output = $('#yt-output').value.trim() || 'downloads/main';
-
-  if (SERVER_MODE) {
-    const btn = $('#btn-yt-download');
-    const status = $('#yt-status');
-    btn.disabled = true;
-    btn.textContent = '⏳ Downloading…';
-    status.textContent = `${urls.length} URL${urls.length === 1 ? '' : 's'}…`;
-    try {
-      const res = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls, audio, quality, output }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        status.innerHTML = `<span style="color:var(--good);">✓</span> Done. Saved to <code>${escapeHtml(data.output)}</code>`;
-        toast(`Downloaded ${urls.length} video${urls.length === 1 ? '' : 's'}`);
-        $('#yt-urls').value = '';
-        // Refresh source clips list if we're showing that folder.
-        await refreshFromServer(data.output);
-      } else {
-        status.innerHTML = `<span style="color:var(--danger);">✗</span> Failed (exit ${data.exit_code}).`;
-        showModal('Download failed', '', (data.stderr || data.stdout || '(no output)').trim());
-      }
-    } catch (e) {
-      status.innerHTML = `<span style="color:var(--danger);">✗</span> Server error: ${escapeHtml(e.message)}`;
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '⬇ Download';
-    }
-    return;
-  }
-
-  // Static mode: produce a copy-paste command. Also try to put it directly
-  // on the clipboard so the user just pastes & runs.
-  const flags = [
-    `-o "${output.replace(/"/g, '\\"')}"`,
-    audio ? '-a' : '',
-    quality ? `-q ${quality}` : '',
-  ].filter(Boolean).join(' ');
-  const urlArgs = urls.map(u => `"${u.replace(/"/g, '\\"')}"`).join(' \\\n  ');
-  const cmd = [
-    '# Run from the Medley project folder',
-    `# (or use the absolute path: ${SERVER_ROOT}/youtube-downloader/scripts/youtube_downloader.py)`,
-    '',
-    `python3 youtube-downloader/scripts/youtube_downloader.py ${flags} \\`,
-    `  ${urlArgs}`,
-    '',
-    `# After it finishes, re-pick your folder so the editor sees the new files.`,
-  ].join('\n');
-  let desc = 'Copy this command and run it in Terminal.';
-  try {
-    await navigator.clipboard.writeText(cmd);
-    desc = '✓ Copied to clipboard — paste in Terminal & hit Enter. (Modal shows the same text in case you need it again.)';
-  } catch {/* clipboard requires a user gesture or HTTPS — modal still works */}
-  showModal('Download these YouTube videos', desc, cmd);
-});
+// YouTube downloading lives at /download — the Medley page no longer owns it.
 
 // Server-mode helper: fetch the file list and rebuild source clips.
 async function refreshFromServer(folder) {
@@ -1570,6 +1413,7 @@ async function refreshFromServer(folder) {
       url: '/file?path=' + encodeURIComponent(f.path),
       duration: null,
     }));
+    state.serverFolder = folder;
     state.folderName = data.folder.split('/').pop() || data.folder;
     $('#folder-status').textContent = `${state.files.length} videos · ${state.folderName} (server)`;
     renderClips();
@@ -1580,7 +1424,7 @@ async function refreshFromServer(folder) {
 
 // In server mode, auto-load the default downloads folder on page load.
 if (SERVER_MODE) {
-  refreshFromServer($('#yt-output').value.trim() || 'downloads/main');
+  refreshFromServer('downloads/main');
 }
 
 // Drop zone for the rendered medley.mp4 — lets the user preview/download it

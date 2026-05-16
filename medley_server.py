@@ -120,6 +120,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.serve_html()
             if url.path == "/pitch":
                 return self.serve_static("pitch_studio.html", "text/html; charset=utf-8")
+            if url.path == "/download":
+                return self.serve_static("download_studio.html", "text/html; charset=utf-8")
             if url.path == "/api/health":
                 return self.send_json({"ok": True, "root": str(ROOT)})
             if url.path == "/api/files":
