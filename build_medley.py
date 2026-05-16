@@ -57,6 +57,7 @@ def build(
     preset: str,
     height: int | None,
     transition_duration: float | None,
+    normalize: bool,
     dry_run: bool,
 ) -> int:
     if not shutil.which("ffmpeg"):
@@ -146,9 +147,15 @@ def build(
             f"pad={target_w_expr}:{target_h_expr}:(ow-iw)/2:(oh-ih)/2:color=black,"
             f"setsar=1,fps=30,format=yuv420p[v{i}]"
         )
-        parts.append(
-            f"[{i}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a{i}]"
-        )
+        # Optional loudness normalization. Single-pass EBU R128 targeting
+        # -16 LUFS integrated, -1.5 dBTP true peak, 11 LU range — clips from
+        # different sources end up at roughly the same perceived loudness.
+        # `loudnorm` first so its output (float internal) gets reformatted by
+        # the following aformat into the uniform mix format.
+        audio_chain = "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo"
+        if normalize:
+            audio_chain = "loudnorm=I=-16:TP=-1.5:LRA=11," + audio_chain
+        parts.append(f"[{i}:a]{audio_chain}[a{i}]")
 
     if xfade > 0 and n > 1:
         # Chain xfade + acrossfade across consecutive clips. Each xfade
@@ -192,7 +199,8 @@ def build(
     print(f"Clips:     {n}")
     print(f"Duration:  {fmt_time(total)}")
     print(f"Settings:  h264 crf={crf} preset={preset} "
-          f"target {target_w}x{target_h}, aac 192k stereo 44.1kHz")
+          f"target {target_w}x{target_h}, aac 192k stereo 44.1kHz"
+          f"{' · loudnorm -16 LUFS' if normalize else ''}")
     if xfade > 0 and n > 1:
         print(f"Crossfade: {xfade:.2f}s between clips (output ≈ {fmt_time(sum(durs) - xfade * (n - 1))})")
     print("-" * 60)
@@ -258,6 +266,14 @@ def main() -> int:
              "0 (default if neither set) = hard cuts.",
     )
     p.add_argument(
+        "--no-normalize",
+        dest="normalize",
+        action="store_false",
+        help="Disable loudness normalization. By default each clip's audio is "
+             "matched to ~-16 LUFS via single-pass EBU R128 loudnorm so tracks "
+             "from different sources sound about equally loud.",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the ffmpeg command and exit.",
@@ -272,6 +288,7 @@ def main() -> int:
         preset=args.preset,
         height=args.height,
         transition_duration=args.crossfade,
+        normalize=args.normalize,
         dry_run=args.dry_run,
     )
 
