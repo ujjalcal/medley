@@ -1161,7 +1161,9 @@ function loadRenderedFromServer(serverPath) {
   content.innerHTML = html;
   content.querySelector('video').src = url;
   hideModalExtras();
-  $('#modal-bg').classList.add('show');
+  // Mark this modal as protected so a stray click on the backdrop (common when
+  // refocusing the browser via click-to-front) doesn't kill the preview.
+  $('#modal-bg').classList.add('show', 'protected');
 }
 
 function showBuildModal(cmd) {
@@ -1432,7 +1434,9 @@ function loadRendered(file) {
   content.innerHTML = html;
   content.querySelector('video').src = url;
   hideModalExtras();
-  $('#modal-bg').classList.add('show');
+  // Mark this modal as protected so a stray click on the backdrop (common when
+  // refocusing the browser via click-to-front) doesn't kill the preview.
+  $('#modal-bg').classList.add('show', 'protected');
 }
 
 $('#btn-clear').addEventListener('click', () => {
@@ -1615,11 +1619,23 @@ function showModal(title, desc, content) {
   $('#modal-bg').classList.add('show');
 }
 function closeModal() {
-  $('#modal-bg').classList.remove('show');
+  // Pause any media inside the modal — a display:none <video> keeps playing
+  // audio until paused, so without this the rendered medley keeps singing
+  // after the popup closes.
+  $('#modal-bg').querySelectorAll('video, audio').forEach((el) => {
+    try { el.pause(); el.removeAttribute('src'); el.load(); } catch {}
+  });
+  $('#modal-bg').classList.remove('show', 'protected');
   $('#modal-bg').querySelector('.modal').classList.remove('wide');
 }
 $('#modal-close').addEventListener('click', closeModal);
-$('#modal-bg').addEventListener('click', (e) => { if (e.target.id === 'modal-bg') closeModal(); });
+$('#modal-bg').addEventListener('click', (e) => {
+  // Protected modals (video preview) ignore backdrop clicks so an accidental
+  // click while refocusing the browser doesn't dismiss the preview.
+  if (e.target.id !== 'modal-bg') return;
+  if (e.currentTarget.classList.contains('protected')) return;
+  closeModal();
+});
 $('#modal-copy').addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText($('#modal-content').textContent);
