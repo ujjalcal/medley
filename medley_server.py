@@ -11,9 +11,10 @@ Usage
     python3 medley_server.py
     # then visit http://localhost:8765/
 
-It expects medley_studio.html, youtube_downloader.py, and build_medley.py
-to live next to it (they ship as a set). All file paths the API accepts
-are constrained to be inside --root (default: this script's folder).
+It expects medley_studio.html and build_medley.py to live next to it, plus
+the bundled YouTube downloader at youtube-downloader/scripts/youtube_downloader.py
+(they ship as a set). All file paths the API accepts are constrained to be
+inside --root (default: this script's folder).
 
 Endpoints
 ---------
@@ -253,7 +254,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.send_json({"error": str(e)}, 400)
         out.mkdir(parents=True, exist_ok=True)
 
-        cmd = [sys.executable, str(SCRIPT_DIR / "youtube_downloader.py"),
+        cmd = [sys.executable,
+               str(SCRIPT_DIR / "youtube-downloader" / "scripts" / "youtube_downloader.py"),
                "-o", str(out), "--quiet"]
         if body.get("audio"):
             cmd.append("-a")

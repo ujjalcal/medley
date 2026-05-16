@@ -1355,10 +1355,10 @@ $('#btn-yt-download').addEventListener('click', async () => {
   ].filter(Boolean).join(' ');
   const urlArgs = urls.map(u => `"${u.replace(/"/g, '\\"')}"`).join(' \\\n  ');
   const cmd = [
-    '# Run from the folder where youtube_downloader.py lives,',
-    `# or use the absolute path: ${SERVER_ROOT}/youtube_downloader.py`,
+    '# Run from the Medley project folder',
+    `# (or use the absolute path: ${SERVER_ROOT}/youtube-downloader/scripts/youtube_downloader.py)`,
     '',
-    `python3 youtube_downloader.py ${flags} \\`,
+    `python3 youtube-downloader/scripts/youtube_downloader.py ${flags} \\`,
     `  ${urlArgs}`,
     '',
     `# After it finishes, re-pick your folder so the editor sees the new files.`,
