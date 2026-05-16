@@ -118,6 +118,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             if url.path == "/":
                 return self.serve_html()
+            if url.path == "/pitch":
+                return self.serve_static("pitch_studio.html", "text/html; charset=utf-8")
             if url.path == "/api/health":
                 return self.send_json({"ok": True, "root": str(ROOT)})
             if url.path == "/api/files":
@@ -139,6 +141,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.api_download()
             if url.path == "/api/build":
                 return self.api_build()
+            if url.path == "/api/shift_pitch_test":
+                return self.api_shift_pitch_test()
+            if url.path == "/api/shift_pitch_save":
+                return self.api_shift_pitch_save()
             self.send_error(404)
         except Exception as e:
             sys.stderr.write(f"[medley] error: {e}\n")
@@ -148,6 +154,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 pass
 
     # ---- handlers ----
+
+    def serve_static(self, name, ctype):
+        """Serve a sibling file as-is (no template injection)."""
+        path = SCRIPT_DIR / name
+        if not path.is_file():
+            return self.send_error(500, f"{name} not found next to medley_server.py")
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def serve_html(self):
         path = SCRIPT_DIR / "medley_studio.html"
@@ -303,6 +322,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             cmd += ["--crf", str(int(body["crf"]))]
         if body.get("height") is not None:
             cmd += ["--height", str(int(body["height"]))]
+        if body.get("pitch") is not None:
+            cmd += ["--pitch", str(int(body["pitch"]))]
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
@@ -319,6 +340,138 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "stderr": result.stderr[-4000:],
             "output": str(output),
         })
+
+    # ---- pitch studio ----
+
+    AUDIO_EXTS = {".mp3", ".m4a", ".wav", ".ogg", ".aac", ".flac"}
+
+    def _stream_body_to(self, path: Path) -> int:
+        """Write the request body to `path`. Returns bytes written."""
+        n = int(self.headers.get("Content-Length") or 0)
+        if n == 0:
+            return 0
+        remaining = n
+        with open(path, "wb") as f:
+            while remaining > 0:
+                chunk = self.rfile.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                f.write(chunk)
+                remaining -= len(chunk)
+        return n - remaining
+
+    def api_shift_pitch_test(self):
+        """Upload a video/audio file and render a pitch-shifted preview.
+
+        Headers:
+          X-Filename: URL-encoded original filename (e.g. "song.mp4")
+          X-Pitch:    integer, -12..+12
+
+        Body: raw bytes of the file.
+
+        Output is written to `downloads/pitch/.preview_<safe_name>` —
+        a single preview slot per input filename, overwritten on each call.
+        """
+        raw_name = self.headers.get("X-Filename") or "input.mp4"
+        filename = urllib.parse.unquote(raw_name)
+        try:
+            pitch = int(self.headers.get("X-Pitch") or "0")
+        except ValueError:
+            return self.send_json({"error": "X-Pitch must be an integer"}, 400)
+        if not -12 <= pitch <= 12:
+            return self.send_json({"error": "pitch must be -12..+12"}, 400)
+
+        # Sanitize: keep only the basename so a path can't escape via X-Filename.
+        safe_name = Path(filename).name or "input.mp4"
+        suffix = Path(safe_name).suffix.lower() or ".mp4"
+        stem = Path(safe_name).stem or "input"
+        is_audio = suffix in self.AUDIO_EXTS
+
+        staging = ROOT / "downloads" / "pitch"
+        staging.mkdir(parents=True, exist_ok=True)
+        in_path = staging / f".input_{safe_name}"
+        out_path = staging / f".preview_{safe_name}"
+
+        written = self._stream_body_to(in_path)
+        if written == 0:
+            return self.send_json({"error": "empty body"}, 400)
+
+        if pitch == 0:
+            # No shift requested — preview is just a copy.
+            import shutil as _sh
+            _sh.copyfile(in_path, out_path)
+            return self.send_json({
+                "ok": True,
+                "preview": str(out_path),
+                "suggested_name": f"{stem}_pitch+0{suffix}",
+                "pitch": pitch,
+            })
+
+        ratio = 2 ** (pitch / 12.0)
+        af = (f"asetrate=44100*{ratio:.6f},"
+              f"aresample=44100,atempo={1 / ratio:.6f}")
+        cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "warning",
+               "-i", str(in_path), "-af", af, "-b:a", "192k"]
+        if not is_audio:
+            # Video: passthrough the video stream, re-encode audio to AAC.
+            cmd += ["-c:v", "copy", "-c:a", "aac",
+                    "-movflags", "+faststart"]
+        cmd += [str(out_path)]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+        except subprocess.TimeoutExpired:
+            return self.send_json({"error": "render timed out (30 min cap)"}, 504)
+
+        if result.returncode != 0:
+            return self.send_json({
+                "ok": False,
+                "error": "ffmpeg failed",
+                "stderr": result.stderr[-2000:],
+            }, 500)
+
+        return self.send_json({
+            "ok": True,
+            "preview": str(out_path),
+            "suggested_name": f"{stem}_pitch{pitch:+d}{suffix}",
+            "pitch": pitch,
+        })
+
+    def api_shift_pitch_save(self):
+        """Promote the preview slot to a permanent name.
+
+        Body: JSON { "preview": "<path>", "save_as": "<filename>" }
+        Both must resolve inside downloads/pitch/.
+        """
+        body = self.read_json()
+        preview = body.get("preview")
+        save_as = body.get("save_as")
+        if not preview or not save_as:
+            return self.send_json({"error": "missing preview or save_as"}, 400)
+
+        # save_as is a filename only — no path components, no escapes.
+        save_name = Path(save_as).name
+        if not save_name:
+            return self.send_json({"error": "save_as must be a filename"}, 400)
+
+        try:
+            pdir = (ROOT / "downloads" / "pitch").resolve()
+            src = safe_path(preview)
+            dst = safe_path(pdir / save_name)
+        except ValueError as e:
+            return self.send_json({"error": str(e)}, 400)
+        if not src.is_file():
+            return self.send_json({"error": f"preview not found: {src.name}"}, 404)
+        # Confine both to the pitch staging folder.
+        try:
+            src.relative_to(pdir)
+            dst.relative_to(pdir)
+        except ValueError:
+            return self.send_json({"error": "paths must stay in downloads/pitch/"}, 400)
+
+        import shutil as _sh
+        _sh.copyfile(src, dst)
+        return self.send_json({"ok": True, "output": str(dst)})
 
 
 def find_free_port(default: int) -> int:

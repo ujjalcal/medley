@@ -298,6 +298,7 @@
 <header>
   <h1>🎤 Medley Studio</h1>
   <div class="row">
+    <a href="/pitch" class="btn" title="Open the Pitch Studio: shift pitch on a single video or audio file">🎵 Pitch Studio →</a>
     <span id="folder-status" class="muted">No folder selected</span>
     <label class="btn" title="Import a previously-exported medley.json">
       Import medley…
@@ -380,6 +381,14 @@
         <label for="transition-dur">Crossfade:</label>
         <input id="transition-dur" type="number" min="0" max="10" step="0.1" value="0">
         <span>s between clips</span>
+      </div>
+
+      <div class="opt-row" title="Shift the rendered medley's pitch by N semitones (1 octave = 12). Speed is preserved. Useful for matching the song's key to your voice. Only affects the rendered mp4 — the browser preview always plays at the original pitch.">
+        <label for="pitch-semi">Pitch:</label>
+        <button id="pitch-down" class="ghost" type="button" title="−1 semitone">−</button>
+        <input id="pitch-semi" type="number" min="-12" max="12" step="1" value="0">
+        <button id="pitch-up" class="ghost" type="button" title="+1 semitone">+</button>
+        <span>semitones</span>
       </div>
 
       <div class="actions">
@@ -1087,6 +1096,17 @@ $('#preview-a').addEventListener('ended', () => { if (A() === $('#preview-a')) a
 $('#preview-b').addEventListener('ended', () => { if (A() === $('#preview-b')) advancePreview(+1); });
 
 // ---------- export / import / build ----------
+
+// Pitch control — clamp to [-12, +12] and wire the +/- buttons.
+(function () {
+  const inp = $('#pitch-semi');
+  const clamp = (v) => Math.max(-12, Math.min(12, v | 0));
+  const bump = (delta) => { inp.value = String(clamp((parseInt(inp.value, 10) || 0) + delta)); };
+  $('#pitch-down').addEventListener('click', () => bump(-1));
+  $('#pitch-up').addEventListener('click', () => bump(+1));
+  inp.addEventListener('change', () => { inp.value = String(clamp(parseInt(inp.value, 10) || 0)); });
+})();
+
 function exportPayload() {
   const xfade = parseFloat($('#transition-dur').value) || 0;
   return {
@@ -1131,6 +1151,7 @@ $('#btn-build').addEventListener('click', async () => {
         body: JSON.stringify({
           cutlist: exportPayload(),
           folder: $('#yt-output').value.trim() || 'downloads/main',
+          pitch: parseInt($('#pitch-semi').value || '0', 10),
         }),
       });
       const data = await res.json();

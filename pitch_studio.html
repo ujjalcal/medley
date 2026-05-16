@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pitch Studio</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161a22;
+    --panel-2: #1d2330;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #f78166;
+    --accent-2: #58a6ff;
+    --good: #3fb950;
+    --danger: #f85149;
+    --border: #30363d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.4;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { margin: 0; font-size: 18px; }
+  header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  header a:hover { color: var(--text); }
+  main { max-width: 720px; margin: 32px auto; padding: 0 24px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px;
+  }
+  h2 { margin: 0 0 8px; font-size: 16px; }
+  .lead { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .drop {
+    margin-top: 16px; padding: 36px 20px; border: 2px dashed var(--border);
+    border-radius: 6px; text-align: center; color: var(--muted);
+    cursor: pointer; font-size: 13px;
+  }
+  .drop.dragover { border-color: var(--accent); color: var(--accent); background: rgba(247,129,102,0.05); }
+  .drop strong { color: var(--text); display: block; margin-bottom: 4px; font-weight: normal; font-size: 14px; }
+  .file-info {
+    margin-top: 14px; padding: 10px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; font-size: 12px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .file-info .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 18px;
+    padding-top: 14px; border-top: 1px solid var(--border);
+    font-size: 13px; color: var(--muted);
+  }
+  .opt-row label { color: var(--text); min-width: 50px; }
+  .opt-row input[type=number] {
+    width: 60px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  button, .btn {
+    font: inherit; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text); padding: 6px 12px; border-radius: 4px;
+    text-decoration: none; display: inline-block;
+  }
+  button:hover, .btn:hover { background: var(--bg); }
+  button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  button.primary:hover { background: #d96d52; }
+  button.good { background: var(--good); color: white; border-color: var(--good); }
+  button.good:hover { background: #2e9842; }
+  button.ghost { background: transparent; color: var(--muted); }
+  button:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+  .actions { margin-top: 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status.error { color: var(--danger); }
+  .status.success { color: var(--good); }
+  .preview-block { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+  video, audio { width: 100%; max-height: 420px; background: #000; border-radius: 6px; display: block; }
+  audio { background: transparent; max-height: 56px; }
+  .preview-meta { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .preview-meta .name {
+    color: var(--muted); font-size: 11px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;
+  }
+  .save-row {
+    margin-top: 14px; padding: 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .save-row label { color: var(--muted); font-size: 12px; }
+  .save-row input[type=text] {
+    flex: 1; min-width: 200px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 6px 8px; font-family: ui-monospace, monospace; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎵 Pitch Studio</h1>
+  <a href="/" title="Back to the medley editor">← Medley Studio</a>
+</header>
+
+<main>
+<div class="card">
+  <h2>Shift pitch of any video or audio file</h2>
+  <p class="lead">
+    Drop a file, pick how many semitones to shift, click <em>Test</em> to preview the result.
+    Speed is preserved. When you find a pitch you like, click <em>Save</em> to keep a copy with a clean name.
+    Saved files land in <code>downloads/pitch/</code>.
+  </p>
+
+  <div id="drop" class="drop">
+    <strong>Click or drop a file here</strong>
+    video (mp4, mov, webm, mkv) or audio (mp3, m4a, wav, ogg, flac)
+  </div>
+
+  <div id="file-info" class="file-info" style="display: none;">
+    <span class="name" id="file-name"></span>
+    <button id="file-clear" class="ghost" title="Pick a different file">✕</button>
+  </div>
+
+  <div class="opt-row" title="Shift pitch by N semitones (1 octave = 12). Quality is best for small shifts; large shifts (>±6) develop audible artifacts.">
+    <label for="pitch">Pitch:</label>
+    <button id="pitch-down" type="button" title="−1 semitone">−</button>
+    <input id="pitch" type="number" min="-12" max="12" step="1" value="0">
+    <button id="pitch-up" type="button" title="+1 semitone">+</button>
+    <span>semitones</span>
+  </div>
+
+  <div class="actions">
+    <button id="run" class="primary" disabled>▶ Test</button>
+    <span id="status" class="status"></span>
+  </div>
+
+  <div id="preview" class="preview-block" style="display: none;">
+    <div id="player-slot"></div>
+    <div class="preview-meta">
+      <span class="name" id="preview-name"></span>
+    </div>
+    <div class="save-row">
+      <label for="save-name">Save as:</label>
+      <input id="save-name" type="text" placeholder="my_song_pitch+2.mp4">
+      <button id="save" class="good">💾 Save</button>
+    </div>
+    <div id="saved-row" style="display:none; margin-top: 12px;" class="actions">
+      <span class="status success" id="saved-msg"></span>
+      <a id="saved-dl" class="btn" download href="#">⬇ Download</a>
+      <a id="saved-open" class="btn" target="_blank" rel="noopener" href="#">↗ New tab</a>
+    </div>
+  </div>
+</div>
+</main>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const AUDIO_EXTS = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac'];
+  const VIDEO_EXTS = ['.mp4', '.m4v', '.mov', '.webm', '.mkv'];
+  const isAudio = (name) => AUDIO_EXTS.some(e => name.toLowerCase().endsWith(e));
+  const isAccepted = (name) => isAudio(name) ||
+                               VIDEO_EXTS.some(e => name.toLowerCase().endsWith(e));
+
+  const drop = $('#drop');
+  const pitchInput = $('#pitch');
+  const runBtn = $('#run');
+  const statusEl = $('#status');
+  const preview = $('#preview');
+  const playerSlot = $('#player-slot');
+  const previewNameEl = $('#preview-name');
+  const saveBtn = $('#save');
+  const saveNameInput = $('#save-name');
+  const savedRow = $('#saved-row');
+
+  let chosenFile = null;
+  let lastPreview = null;    // { preview: <server path>, suggested_name, pitch }
+
+  // ----- file picker -----
+  function pickFile(file) {
+    if (!file) return;
+    if (!isAccepted(file.name)) {
+      alert('Need a video (mp4/mov/webm/mkv) or audio (mp3/m4a/wav/ogg/flac) file.');
+      return;
+    }
+    chosenFile = file;
+    $('#file-info').style.display = '';
+    $('#file-name').textContent = `${file.name} · ${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+    runBtn.disabled = false;
+    // Reset any previous preview when a new file is loaded.
+    hidePreview();
+    statusEl.textContent = '';
+    statusEl.className = 'status';
+  }
+
+  function hidePreview() {
+    preview.style.display = 'none';
+    playerSlot.innerHTML = '';
+    savedRow.style.display = 'none';
+    lastPreview = null;
+  }
+
+  drop.addEventListener('click', () => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'video/*,audio/*';
+    inp.onchange = () => pickFile(inp.files[0]);
+    inp.click();
+  });
+  ['dragenter', 'dragover'].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('dragover'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('dragover'); }));
+  drop.addEventListener('drop', e => pickFile(e.dataTransfer.files[0]));
+
+  $('#file-clear').addEventListener('click', () => {
+    chosenFile = null;
+    $('#file-info').style.display = 'none';
+    runBtn.disabled = true;
+    hidePreview();
+    statusEl.textContent = '';
+    statusEl.className = 'status';
+  });
+
+  // ----- pitch +/- -----
+  const clamp = v => Math.max(-12, Math.min(12, v | 0));
+  $('#pitch-down').addEventListener('click', () =>
+    pitchInput.value = String(clamp((parseInt(pitchInput.value, 10) || 0) - 1)));
+  $('#pitch-up').addEventListener('click', () =>
+    pitchInput.value = String(clamp((parseInt(pitchInput.value, 10) || 0) + 1)));
+  pitchInput.addEventListener('change', () =>
+    pitchInput.value = String(clamp(parseInt(pitchInput.value, 10) || 0)));
+
+  // ----- Test (upload + render preview) -----
+  runBtn.addEventListener('click', async () => {
+    if (!chosenFile) return;
+    const semis = parseInt(pitchInput.value, 10) || 0;
+
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ Rendering…';
+    savedRow.style.display = 'none';
+    statusEl.textContent = `Uploading ${chosenFile.name} and shifting by ${semis >= 0 ? '+' : ''}${semis} semitone${Math.abs(semis) === 1 ? '' : 's'}…`;
+    statusEl.className = 'status';
+
+    try {
+      const res = await fetch('/api/shift_pitch_test', {
+        method: 'POST',
+        headers: {
+          'X-Filename': encodeURIComponent(chosenFile.name),
+          'X-Pitch': String(semis),
+          'Content-Type': 'application/octet-stream',
+        },
+        body: chosenFile,
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        statusEl.textContent = 'Failed: ' + (data.error || 'unknown');
+        statusEl.className = 'status error';
+        if (data.stderr) console.error(data.stderr);
+        return;
+      }
+
+      lastPreview = data;
+      const url = '/file?path=' + encodeURIComponent(data.preview) + '&t=' + Date.now();
+      // The `t=` cache-buster forces a re-fetch when the same preview path
+      // is overwritten by a new test.
+      playerSlot.innerHTML = isAudio(chosenFile.name)
+        ? `<audio controls autoplay src="${url}"></audio>`
+        : `<video controls autoplay playsinline src="${url}"></video>`;
+      previewNameEl.textContent = `Preview · pitch ${semis >= 0 ? '+' : ''}${semis} semitones (not saved yet)`;
+      saveNameInput.value = data.suggested_name || '';
+      preview.style.display = '';
+      statusEl.textContent = `Preview ready. Adjust pitch and Test again, or Save when happy.`;
+      statusEl.className = 'status success';
+      preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+      statusEl.textContent = 'Error: ' + e.message;
+      statusEl.className = 'status error';
+    } finally {
+      runBtn.disabled = false;
+      runBtn.textContent = '▶ Test';
+    }
+  });
+
+  // ----- Save (copy preview to a permanent name) -----
+  saveBtn.addEventListener('click', async () => {
+    if (!lastPreview) return;
+    const saveAs = saveNameInput.value.trim();
+    if (!saveAs) { alert('Pick a filename to save as.'); return; }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = '⏳ Saving…';
+
+    try {
+      const res = await fetch('/api/shift_pitch_save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preview: lastPreview.preview, save_as: saveAs }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert('Save failed: ' + (data.error || 'unknown'));
+        return;
+      }
+      const url = '/file?path=' + encodeURIComponent(data.output);
+      const outName = data.output.split('/').pop();
+      $('#saved-msg').textContent = `Saved ✓  ${data.output}`;
+      $('#saved-dl').href = url;
+      $('#saved-dl').setAttribute('download', outName);
+      $('#saved-open').href = url;
+      savedRow.style.display = '';
+    } catch (e) {
+      alert('Save error: ' + e.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Save';
+    }
+  });
+</script>
+
+</body>
+</html>

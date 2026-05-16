@@ -58,8 +58,12 @@ def build(
     height: int | None,
     transition_duration: float | None,
     normalize: bool,
+    pitch: int,
     dry_run: bool,
 ) -> int:
+    if not -12 <= pitch <= 12:
+        sys.stderr.write(f"ERROR: --pitch must be between -12 and +12 (got {pitch}).\n")
+        return 2
     if not shutil.which("ffmpeg"):
         sys.stderr.write(
             "ERROR: ffmpeg not found in PATH.\n"
@@ -177,11 +181,25 @@ def build(
             cum = cum + durs[i] - xfade
             cur_v, cur_a = new_v, new_a
         parts.append(f"[{cur_v}]format=yuv420p[outv]")
-        parts.append(f"[{cur_a}]anull[outa]")
+        parts.append(f"[{cur_a}]anull[mixa]")
     else:
         # Hard cuts: classic concat demuxer-via-filter approach.
         concat_inputs = "".join(f"[v{i}][a{i}]" for i in range(n))
-        parts.append(f"{concat_inputs}concat=n={n}:v=1:a=1[outv][outa]")
+        parts.append(f"{concat_inputs}concat=n={n}:v=1:a=1[outv][mixa]")
+
+    # Optional pitch shift applied to the final mixed audio. The trick: change
+    # the sample rate (which shifts pitch *and* speed), resample back to 44.1k
+    # (still pitch- and speed-shifted), then atempo to undo the speed change.
+    # Net effect: pitch up/down by N semitones with original duration preserved.
+    # Quality is good for small shifts (±3); audible artifacts grow beyond ±6.
+    if pitch != 0:
+        ratio = 2 ** (pitch / 12.0)
+        parts.append(
+            f"[mixa]asetrate=44100*{ratio:.6f},"
+            f"aresample=44100,atempo={1 / ratio:.6f}[outa]"
+        )
+    else:
+        parts.append("[mixa]anull[outa]")
 
     filter_complex = ";".join(parts)
 
@@ -200,7 +218,8 @@ def build(
     print(f"Duration:  {fmt_time(total)}")
     print(f"Settings:  h264 crf={crf} preset={preset} "
           f"target {target_w}x{target_h}, aac 192k stereo 44.1kHz"
-          f"{' · loudnorm -16 LUFS' if normalize else ''}")
+          f"{' · loudnorm -16 LUFS' if normalize else ''}"
+          f"{f' · pitch {pitch:+d} st' if pitch else ''}")
     if xfade > 0 and n > 1:
         print(f"Crossfade: {xfade:.2f}s between clips (output ≈ {fmt_time(sum(durs) - xfade * (n - 1))})")
     print("-" * 60)
@@ -274,6 +293,15 @@ def main() -> int:
              "from different sources sound about equally loud.",
     )
     p.add_argument(
+        "--pitch",
+        type=int, default=0, metavar="SEMITONES",
+        help="Shift the rendered medley's audio pitch by N semitones, range "
+             "[-12, +12]. Positive raises pitch, negative lowers it; speed "
+             "is preserved. Useful for matching the song's key to your "
+             "voice when singing along. Default 0 (no shift). Quality is "
+             "best for small shifts; large shifts (>±6) develop artifacts.",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the ffmpeg command and exit.",
@@ -289,6 +317,7 @@ def main() -> int:
         height=args.height,
         transition_duration=args.crossfade,
         normalize=args.normalize,
+        pitch=args.pitch,
         dry_run=args.dry_run,
     )
 
