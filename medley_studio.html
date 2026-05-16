@@ -161,6 +161,30 @@
   }
   .drop-hint.dragover { border-color: var(--accent); color: var(--accent); background: rgba(247,129,102,0.05); }
 
+  /* Inline rendered-medley preview — same slot as the drop hint, swapped in
+     on build success or after a manual drop. */
+  #drop-final.rendered-inline {
+    margin-top: 10px; padding: 10px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--bg); cursor: default; text-align: left;
+  }
+  #drop-final.rendered-inline.dragover {
+    border-color: var(--accent); background: rgba(247,129,102,0.05);
+  }
+  .rendered-video {
+    width: 100%; max-height: 360px; background: #000;
+    border-radius: 6px; display: block;
+  }
+  .rendered-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-top: 8px; flex-wrap: wrap;
+  }
+  .rendered-label {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 11px;
+  }
+  .rendered-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .rendered-actions .btn { font-size: 12px; padding: 4px 8px; }
+
   /* Timeline panel */
   .timeline-panel {
     position: sticky; top: 70px; align-self: start;
@@ -1144,26 +1168,11 @@ $('#btn-build').addEventListener('click', async () => {
 });
 
 function loadRenderedFromServer(serverPath) {
-  // Build a modal with the server-served rendered file. Range support means
-  // the <video> tag can seek normally even on huge medleys.
+  // Server-served file with Range support — the <video> can seek normally
+  // even on huge medleys.
   const url = '/file?path=' + encodeURIComponent(serverPath);
   const name = serverPath.split('/').pop() || 'medley.mp4';
-  const html = `
-    <video controls autoplay playsinline style="width:100%; max-height:60vh; background:#000; border-radius:6px;"></video>
-    <div class="row" style="justify-content:space-between; margin-top:10px;">
-      <span class="muted">${escapeHtml(serverPath)}</span>
-      <a class="btn" download="${escapeHtml(name)}" href="${url}" style="text-decoration:none;">⬇ Download</a>
-    </div>
-  `;
-  $('#modal-title').textContent = 'Rendered medley';
-  $('#modal-desc').textContent = '';
-  const content = $('#modal-content');
-  content.innerHTML = html;
-  content.querySelector('video').src = url;
-  hideModalExtras();
-  // Mark this modal as protected so a stray click on the backdrop (common when
-  // refocusing the browser via click-to-front) doesn't kill the preview.
-  $('#modal-bg').classList.add('show', 'protected');
+  showRenderedInline(url, name, serverPath);
 }
 
 function showBuildModal(cmd) {
@@ -1404,6 +1413,9 @@ if (SERVER_MODE) {
 // from the editor without leaving the page.
 const drop = $('#drop-final');
 drop.addEventListener('click', () => {
+  // While a rendered preview is showing inside this slot, clicks belong to
+  // the video controls — don't pop the file picker.
+  if (drop.classList.contains('rendered-inline')) return;
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'video/*';
   inp.onchange = () => loadRendered(inp.files[0]);
@@ -1421,22 +1433,50 @@ drop.addEventListener('drop', e => {
 function loadRendered(file) {
   if (!file) return;
   const url = URL.createObjectURL(file.type ? file : file.slice(0, file.size, 'video/mp4'));
-  const html = `
-    <video controls autoplay playsinline style="width:100%; max-height:60vh; background:#000; border-radius:6px;"></video>
-    <div class="row" style="justify-content:space-between; margin-top:10px;">
-      <span class="muted">${escapeHtml(file.name)} · ${(file.size / (1024 * 1024)).toFixed(1)} MB</span>
-      <a class="btn" download="${escapeHtml(file.name)}" href="${url}" style="text-decoration:none;">⬇ Download</a>
+  const label = `${file.name} · ${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+  showRenderedInline(url, file.name, label);
+}
+
+// Swap the drop-hint slot into "rendered preview" mode and play the file
+// inline next to the editor controls. The same slot is shared between the
+// initial drop hint and the active preview, so the user can keep dropping
+// new files (or rebuild) to replace what's playing.
+function showRenderedInline(url, downloadName, sourceLabel) {
+  const slot = $('#drop-final');
+  // Stop anything currently playing so we don't leak audio between renders.
+  slot.querySelectorAll('video, audio').forEach((el) => {
+    try { el.pause(); el.removeAttribute('src'); el.load(); } catch {}
+  });
+  slot.classList.remove('drop-hint');
+  slot.classList.add('rendered-inline');
+  slot.innerHTML = `
+    <video controls autoplay playsinline class="rendered-video"></video>
+    <div class="rendered-row">
+      <span class="rendered-label muted" title="${escapeHtml(sourceLabel)}">${escapeHtml(sourceLabel)}</span>
+      <div class="rendered-actions">
+        <a class="btn" target="_blank" rel="noopener" href="${url}"
+           title="Open the rendered medley in its own browser tab — drag the tab to another monitor for a second-screen view">↗ New tab</a>
+        <a class="btn" download="${escapeHtml(downloadName)}" href="${url}">⬇ Download</a>
+        <button class="btn ghost" id="rendered-clear" title="Close the inline preview">✕</button>
+      </div>
     </div>
   `;
-  $('#modal-title').textContent = 'Rendered medley';
-  $('#modal-desc').textContent = '';
-  const content = $('#modal-content');
-  content.innerHTML = html;
-  content.querySelector('video').src = url;
-  hideModalExtras();
-  // Mark this modal as protected so a stray click on the backdrop (common when
-  // refocusing the browser via click-to-front) doesn't kill the preview.
-  $('#modal-bg').classList.add('show', 'protected');
+  slot.querySelector('video').src = url;
+  slot.querySelector('#rendered-clear').addEventListener('click', (e) => {
+    e.stopPropagation();   // don't trigger the drop-zone's file-picker click handler
+    resetDropFinalHint();
+  });
+  slot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function resetDropFinalHint() {
+  const slot = $('#drop-final');
+  slot.querySelectorAll('video, audio').forEach((el) => {
+    try { el.pause(); el.removeAttribute('src'); el.load(); } catch {}
+  });
+  slot.classList.remove('rendered-inline');
+  slot.classList.add('drop-hint');
+  slot.innerHTML = 'Drop the rendered <code>medley.mp4</code> here to preview or download it';
 }
 
 $('#btn-clear').addEventListener('click', () => {
